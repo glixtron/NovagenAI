@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import PresentationForm from './components/PresentationForm';
-import PresentationViewer from './components/PresentationViewer';
+import EnhancedPresentationViewer from './components/EnhancedPresentationViewer';
 import SmartConverter from './components/SmartConverter';
 import ImageEnhancer from './components/ImageEnhancer';
 import PdfEditor from './components/PdfEditor';
@@ -53,8 +53,8 @@ const App: React.FC = () => {
              NovagenAI
           </div>
           <div className="flex items-center space-x-4">
-             <span className="text-xs font-medium px-2 py-1 bg-green-100 text-green-700 rounded-md border border-green-200">
-                Gemini 3 Powered
+             <span className="text-xs font-medium px-2 py-1 bg-blue-100 text-blue-700 rounded-md border border-blue-200">
+                NovagenAI AI
              </span>
           </div>
         </div>
@@ -92,9 +92,9 @@ const App: React.FC = () => {
                   </div>
                 ) : (
                   presentationData && (
-                    <PresentationViewer 
-                      data={presentationData} 
-                      onReset={handleReset} 
+                    <EnhancedPresentationViewer 
+                      presentation={presentationData} 
+                      onBack={handleReset} 
                     />
                   )
                 )}

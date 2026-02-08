@@ -1,10 +1,23 @@
 export interface ChartData {
-  type: 'bar' | 'pie' | 'line';
+  type: 'bar' | 'pie' | 'line' | 'area' | 'scatter';
   title: string;
   labels: string[];
   values: number[];
   seriesName?: string;
   color?: string; // Hex color override
+}
+
+export interface MapData {
+  type: 'world' | 'country' | 'region' | 'city';
+  title: string;
+  locations: string[];
+  values: number[];
+}
+
+export interface InfographicData {
+  type: 'timeline' | 'process' | 'comparison' | 'statistics';
+  title: string;
+  steps: string[];
 }
 
 export interface Slide {
@@ -14,7 +27,10 @@ export interface Slide {
   speakerNotes?: string;
   imagePrompt?: string; 
   imageUrl?: string; // Base64 generated image
-  chart?: ChartData;    
+  chart?: ChartData;
+  map?: MapData;
+  infographic?: InfographicData;
+  transition?: string; // Suggested transition to next slide
 }
 
 export type ThemeId = 'modern' | 'corporate' | 'minimal' | 'vibrant' | 'dark';
@@ -29,6 +45,11 @@ export interface PresentationData {
   aspectRatio: AspectRatio; // Store for generation usage
   imageStyle: ImageStyle;   // Store for context
   enableAnimations?: boolean; // New field
+  branding?: {
+    company: string;
+    logo: string;
+    tagline: string;
+  };
 }
 
 export interface PresentationConfig {

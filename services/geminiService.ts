@@ -21,7 +21,10 @@ export const generatePresentationContent = async (
 ): Promise<PresentationData> => {
   
   try {
-    const modelId = 'gemini-3-flash-preview';
+    const modelId = 'gemini-2.5-flash';
+    
+    console.log('🔑 API Key Check:', process.env.GEMINI_API_KEY ? 'Present' : 'Missing');
+    console.log('📝 Generating presentation for:', config.topic);
 
     const parts: any[] = [];
 
@@ -119,7 +122,13 @@ export const generatePresentationContent = async (
     return data;
 
   } catch (error) {
-    console.error("Error generating presentation:", error);
+    console.error("❌ Error generating presentation:", error);
+    console.error("🔍 Error details:", {
+      message: error.message,
+      status: error.status,
+      statusText: error.statusText,
+      stack: error.stack
+    });
     throw error;
   }
 };
@@ -162,7 +171,7 @@ export const convertContent = async (
   inputFile?: { base64: string; mimeType: string }
 ): Promise<string> => {
   try {
-    const modelId = 'gemini-3-flash-preview';
+    const modelId = 'gemini-2.5-flash';
     const parts: any[] = [];
 
     if (inputFile) {
@@ -284,7 +293,7 @@ export const generateImageVariation = async (
 // --- PROMPT GENERATOR ---
 export const generateDetailedPrompt = async (req: PromptRequest): Promise<string> => {
   try {
-    const modelId = 'gemini-3-flash-preview';
+    const modelId = 'gemini-2.5-flash';
     const prompt = `
       Act as a professional prompt engineer for ${req.platform}.
       I have a basic idea: "${req.idea}".
@@ -314,7 +323,7 @@ export const generateCatalogueDesign = async (
   currentDesign?: CatalogueDesign
 ): Promise<CatalogueDesign> => {
   try {
-    const modelId = 'gemini-3-flash-preview';
+    const modelId = 'gemini-2.5-flash';
     
     // We send product info (names/cats) but not the full images to save tokens, just context.
     const productSummary = products.map(p => `${p.name} (${p.category}) - ${p.price}`).join(', ');

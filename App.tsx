@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import PresentationForm from './components/PresentationForm';
-import EnhancedPresentationViewer from './components/EnhancedPresentationViewer';
+import SimplePresentationViewer from './components/SimplePresentationViewer';
 import SmartConverter from './components/SmartConverter';
 import ImageEnhancer from './components/ImageEnhancer';
 import PdfEditor from './components/PdfEditor';
@@ -92,7 +92,7 @@ const App: React.FC = () => {
                   </div>
                 ) : (
                   presentationData && (
-                    <EnhancedPresentationViewer 
+                    <SimplePresentationViewer 
                       presentation={presentationData} 
                       onBack={handleReset} 
                     />

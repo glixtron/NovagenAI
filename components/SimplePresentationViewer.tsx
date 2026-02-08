@@ -1,23 +1,23 @@
 import React, { useState, useEffect } from 'react';
 import { PresentationData, Slide, ChartData, MapData, InfographicData } from '../types';
 import { ChevronLeftIcon, ChevronRightIcon, DownloadIcon, PlayIcon, Volume2Icon } from './Icons';
-import PptxGenJS from 'pptxgenjs';
 
-interface EnhancedPresentationViewerProps {
+interface SimplePresentationViewerProps {
   presentation: PresentationData;
   onBack: () => void;
 }
 
-const EnhancedPresentationViewer: React.FC<EnhancedPresentationViewerProps> = ({ presentation, onBack }) => {
+const SimplePresentationViewer: React.FC<SimplePresentationViewerProps> = ({ presentation, onBack }) => {
   const [currentSlideIndex, setCurrentSlideIndex] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
-  const [isGeneratingImages, setIsGeneratingImages] = useState(false);
-  const [generatedImages, setGeneratedImages] = useState<{ [key: string]: string }>({});
+  const [isDownloading, setIsDownloading] = useState(false);
 
   const currentSlide = presentation.slides[currentSlideIndex];
   const totalSlides = presentation.slides.length;
 
   // Initialize with pre-generated images from presentation data
+  const [generatedImages, setGeneratedImages] = useState<{ [key: string]: string }>({});
+  
   useEffect(() => {
     const preGeneratedImages: { [key: string]: string } = {};
     presentation.slides.forEach(slide => {
@@ -42,42 +42,14 @@ const EnhancedPresentationViewer: React.FC<EnhancedPresentationViewerProps> = ({
     }
   }, [isPlaying, currentSlideIndex, totalSlides]);
 
-  // Generate missing images
-  const generateMissingImages = async () => {
-    setIsGeneratingImages(true);
-    try {
-      const images: { [key: string]: string } = { ...generatedImages };
-      
-      for (const slide of presentation.slides) {
-        if (!images[slide.id] && slide.imagePrompt) {
-          // This would call the image generation service
-          // For now, we'll use a placeholder
-          images[slide.id] = `data:image/svg+xml,${encodeURIComponent(`
-            <svg width="800" height="450" xmlns="http://www.w3.org/2000/svg">
-              <rect width="800" height="450" fill="#f3f4f6"/>
-              <text x="400" y="225" text-anchor="middle" font-family="Arial" font-size="18" fill="#6b7280">
-                ${slide.imagePrompt.substring(0, 50)}...
-              </text>
-            </svg>
-          `)}`;
-        }
-      }
-      
-      setGeneratedImages(images);
-    } catch (error) {
-      console.error('Failed to generate images:', error);
-    } finally {
-      setIsGeneratingImages(false);
-    }
-  };
-
   // Download entire presentation as PPTX
   const downloadPresentation = async () => {
     try {
+      setIsDownloading(true);
       console.log('📥 Generating PowerPoint presentation...');
       
       // Create new presentation
-      const pptx = new PptxGenJS();
+      const pptx = new (window as any).PptxGenJS();
       
       // Add title slide
       pptx.addSlide();
@@ -165,6 +137,8 @@ const EnhancedPresentationViewer: React.FC<EnhancedPresentationViewerProps> = ({
     } catch (error) {
       console.error('❌ Failed to generate PowerPoint:', error);
       alert('Failed to generate PowerPoint. Please try again.');
+    } finally {
+      setIsDownloading(false);
     }
   };
 
@@ -427,24 +401,6 @@ const EnhancedPresentationViewer: React.FC<EnhancedPresentationViewerProps> = ({
 
           <div className="flex items-center space-x-4">
             <button
-              onClick={generateMissingImages}
-              disabled={isGeneratingImages}
-              className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors"
-            >
-              {isGeneratingImages ? (
-                <>
-                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                  <span>Generating...</span>
-                </>
-              ) : (
-                <>
-                  <div className="w-4 h-4">🎨</div>
-                  <span>Generate Missing Images</span>
-                </>
-              )}
-            </button>
-
-            <button
               onClick={() => setIsPlaying(!isPlaying)}
               className="flex items-center space-x-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
             >
@@ -463,10 +419,20 @@ const EnhancedPresentationViewer: React.FC<EnhancedPresentationViewerProps> = ({
 
             <button
               onClick={downloadPresentation}
-              className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              disabled={isDownloading}
+              className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors"
             >
-              <DownloadIcon className="w-4 h-4" />
-              <span>Download PPT</span>
+              {isDownloading ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                  <span>Downloading...</span>
+                </>
+              ) : (
+                <>
+                  <DownloadIcon className="w-4 h-4" />
+                  <span>Download PPT</span>
+                </>
+              )}
             </button>
           </div>
         </div>
@@ -523,4 +489,4 @@ const EnhancedPresentationViewer: React.FC<EnhancedPresentationViewerProps> = ({
   );
 };
 
-export default EnhancedPresentationViewer;
+export default SimplePresentationViewer;

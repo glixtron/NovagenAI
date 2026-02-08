@@ -1,6 +1,45 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { PresentationData, PresentationConfig, CatalogueDesign, Product, PromptRequest } from "../types";
 
+// Helper function to generate placeholder SVG
+const generatePlaceholderSVG = (title: string, prompt: string, style: string): string => {
+  const colors = {
+    'Photorealistic': '#3b82f6',
+    'Cartoon': '#f59e0b',
+    'Watercolor': '#06b6d4',
+    'Cyberpunk': '#8b5cf6',
+    'Sketch': '#6b7280',
+    '3D Render': '#ec4899',
+    'Minimalist': '#64748b',
+    'Abstract': '#f97316'
+  };
+  
+  const color = colors[style as keyof typeof colors] || '#3b82f6';
+  
+  return `data:image/svg+xml,${encodeURIComponent(`
+    <svg width="800" height="450" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" style="stop-color:${color};stop-opacity:0.8" />
+          <stop offset="100%" style="stop-color:${color};stop-opacity:0.3" />
+        </linearGradient>
+      </defs>
+      <rect width="800" height="450" fill="url(#grad)" />
+      <rect x="50" y="50" width="700" height="350" rx="10" fill="white" fill-opacity="0.9" />
+      <text x="400" y="150" text-anchor="middle" font-family="Arial, sans-serif" font-size="24" font-weight="bold" fill="#1f2937">
+        ${title}
+      </text>
+      <text x="400" y="200" text-anchor="middle" font-family="Arial, sans-serif" font-size="14" fill="#6b7280">
+        ${prompt.substring(0, 80)}...
+      </text>
+      <circle cx="400" cy="280" r="40" fill="${color}" fill-opacity="0.3" />
+      <rect x="320" y="320" width="160" height="4" rx="2" fill="${color}" />
+      <rect x="280" y="340" width="240" height="4" rx="2" fill="${color}" fill-opacity="0.6" />
+      <rect x="240" y="360" width="320" height="4" rx="2" fill="${color}" fill-opacity="0.3" />
+    </svg>
+  `)}`;
+};
+
 // Initialize Gemini Client
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
@@ -190,17 +229,40 @@ export const generatePresentationContent = async (
       tagline: "AI-Powered Presentations"
     };
     
-    // Ensure every slide has enhanced visuals
-    data.slides = data.slides.map((s, i) => ({ 
-      ...s, 
-      id: s.id || `slide-${i}`,
-      // Ensure speaker notes are comprehensive
-      speakerNotes: s.speakerNotes || `Detailed talking points for slide ${i + 1}. Include engagement questions and data insights.`,
-      // Ensure image prompts are detailed
-      imagePrompt: s.imagePrompt || `Professional ${config.imageStyle} style image related to ${s.title}`,
-      // Add default transition if missing
-      transition: s.transition || "fade"
-    }));
+    // Auto-generate images for all slides immediately
+    const slidesWithImages = await Promise.all(
+      data.slides.map(async (slide, index) => {
+        let imageUrl = "";
+        
+        // Generate image for every slide automatically
+        if (slide.imagePrompt) {
+          try {
+            console.log(`🎨 Auto-generating image for slide ${index + 1}: ${slide.title}`);
+            imageUrl = await generateRealImage(slide.imagePrompt, config.aspectRatio);
+            console.log(`✅ Image generated for slide ${index + 1}`);
+          } catch (error) {
+            console.error(`❌ Failed to generate image for slide ${index + 1}:`, error);
+            // Create a placeholder SVG as fallback
+            imageUrl = generatePlaceholderSVG(slide.title, slide.imagePrompt, config.imageStyle);
+          }
+        }
+        
+        return {
+          ...slide,
+          id: slide.id || `slide-${index}`,
+          // Ensure speaker notes are comprehensive
+          speakerNotes: slide.speakerNotes || `Detailed talking points for slide ${index + 1}. Include engagement questions and data insights.`,
+          // Ensure image prompts are detailed
+          imagePrompt: slide.imagePrompt || `Professional ${config.imageStyle} style image related to ${slide.title}`,
+          // Add default transition if missing
+          transition: slide.transition || "fade",
+          // Add generated image
+          imageUrl: imageUrl
+        };
+      })
+    );
+    
+    data.slides = slidesWithImages;
     
     return data;
 

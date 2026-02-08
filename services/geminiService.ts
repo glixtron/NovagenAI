@@ -5,15 +5,36 @@ import { PresentationData, PresentationConfig, CatalogueDesign, Product, PromptR
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
 const PRESENTATION_SYSTEM_INSTRUCTION = `
-You are an expert presentation designer and data analyst.
-Your goal is to create highly visual, structured, and professional presentations.
-1. Content: Clear, concise bullet points (max 4 per slide).
-2. Visuals: For EVERY slide, provide a highly descriptive 'imagePrompt' suitable for AI image generation. 
-   - The prompt MUST strictly adhere to the user's requested 'Image Style'.
-   - Example for 'Cyberpunk': "A futuristic city skyline with neon lights, high contrast, cyan and magenta hues, 4k, realistic texture."
-   - Example for 'Watercolor': "Soft watercolor painting of a city skyline, pastel colors, artistic brush strokes, white background."
-3. Data: If the topic involves numbers, trends, or comparisons, include a 'chart' object with realistic data.
-4. Structure: logical flow.
+You are an expert presentation designer and data analyst working for NovagenAI.
+Your goal is to create highly visual, detailed, and professional presentations with NOVAGENAI branding.
+
+1. Content: Clear, concise bullet points (max 4 per slide) with detailed information.
+
+2. Visuals: For EVERY slide, provide a highly descriptive 'imagePrompt' suitable for AI image generation:
+   - The prompt MUST strictly adhere to the user's requested 'Image Style'
+   - Include specific details: lighting, composition, colors, mood
+   - Example for 'Cyberpunk': "A futuristic city skyline with neon lights, high contrast, cyan and magenta hues, 4k, realistic texture, detailed architecture"
+   - Example for 'Watercolor': "Soft watercolor painting of a business meeting, pastel colors, artistic brush strokes, white background, professional setting"
+
+3. Data Visualization: Include at least 3 of these visual elements:
+   - Charts: bar, pie, line, area charts with realistic data
+   - Graphs: trend lines, scatter plots, comparison graphs
+   - Maps: geographic data, location-based information
+   - Infographics: process flows, timelines, statistics
+   - Diagrams: system architectures, workflows
+
+4. Branding: 
+   - Use NOVAGENAI as the only brand name
+   - White label design with clean, professional appearance
+   - NO third-party branding or references
+
+5. Structure: Logical flow with engaging narrative and visual storytelling.
+
+6. Quality Requirements:
+   - Every slide MUST have a visual element (image, chart, or diagram)
+   - Include speaker notes with detailed talking points
+   - Add transition suggestions between slides
+   - Ensure all visuals are content-relevant and informative
 `;
 
 export const generatePresentationContent = async (
@@ -42,16 +63,40 @@ export const generatePresentationContent = async (
     }
 
     const prompt = `
-      Create a detailed ${config.length}-slide presentation about: "${config.topic}".
+      Create a comprehensive ${config.length}-slide presentation about: "${config.topic}".
       Target Audience: ${config.audience}.
       Tone: ${config.tone}.
       Design Style: ${config.theme}.
       Image Style for visuals: ${config.imageStyle}.
       
-      Requirements:
-      - Include at least 2 slides with relevant charts/graphs (bar, pie, or line) representing realistic data for this topic.
-      - Every slide must have a descriptive image prompt that matches the '${config.imageStyle}' style.
-      - Make the content detailed and professional.
+      CRITICAL REQUIREMENTS:
+      1. VISUAL EXCELLENCE:
+         - EVERY slide MUST have a high-quality, content-relevant image
+         - Include at least 3 different chart types: bar charts, pie charts, line graphs
+         - Add maps if geographic data is relevant
+         - Include infographics and diagrams for complex concepts
+         - All visuals must be detailed and informative
+      
+      2. CONTENT DEPTH:
+         - Provide detailed, expert-level information
+         - Include specific data points, statistics, and facts
+         - Add speaker notes with comprehensive talking points
+         - Ensure logical flow with smooth transitions
+      
+      3. BRANDING:
+         - Use "NOVAGENAI" as the exclusive brand
+         - White label design - no third-party references
+         - Professional, clean aesthetic
+      
+      4. VISUAL DIVERSITY:
+         - Mix of images, charts, graphs, maps, and diagrams
+         - Each visual should enhance understanding
+         - Ensure all graphics are publication-ready
+      
+      5. QUALITY STANDARDS:
+         - Every slide must be visually rich and informative
+         - Include transition suggestions between slides
+         - Add engagement questions in speaker notes
     `;
     
     parts.push({ text: prompt });
@@ -83,17 +128,37 @@ export const generatePresentationContent = async (
                   },
                   speakerNotes: { type: Type.STRING },
                   imagePrompt: { type: Type.STRING, description: `A detailed description of a visual in ${config.imageStyle} style.` },
+                  transition: { type: Type.STRING, description: "Suggested transition to next slide" },
                   chart: {
                     type: Type.OBJECT,
                     description: "Optional chart data if relevant.",
                     properties: {
-                      type: { type: Type.STRING, enum: ["bar", "pie", "line"] },
+                      type: { type: Type.STRING, enum: ["bar", "pie", "line", "area", "scatter"] },
                       title: { type: Type.STRING },
                       labels: { type: Type.ARRAY, items: { type: Type.STRING } },
                       values: { type: Type.ARRAY, items: { type: Type.NUMBER } },
                       seriesName: { type: Type.STRING }
                     },
                     required: ["type", "title", "labels", "values"]
+                  },
+                  map: {
+                    type: Type.OBJECT,
+                    description: "Optional map data if geographic information is relevant.",
+                    properties: {
+                      type: { type: Type.STRING, enum: ["world", "country", "region", "city"] },
+                      title: { type: Type.STRING },
+                      locations: { type: Type.ARRAY, items: { type: Type.STRING } },
+                      values: { type: Type.ARRAY, items: { type: Type.NUMBER } }
+                    }
+                  },
+                  infographic: {
+                    type: Type.OBJECT,
+                    description: "Optional infographic data for processes or timelines.",
+                    properties: {
+                      type: { type: Type.STRING, enum: ["timeline", "process", "comparison", "statistics"] },
+                      title: { type: Type.STRING },
+                      steps: { type: Type.ARRAY, items: { type: Type.STRING } }
+                    }
                   }
                 },
                 required: ["id", "title", "content", "speakerNotes", "imagePrompt"]
@@ -117,7 +182,25 @@ export const generatePresentationContent = async (
     data.aspectRatio = config.aspectRatio;
     data.imageStyle = config.imageStyle;
     data.enableAnimations = config.enableAnimations;
-    data.slides = data.slides.map((s, i) => ({ ...s, id: s.id || `slide-${i}` }));
+    
+    // Add NovagenAI branding
+    data.branding = {
+      company: "NOVAGENAI",
+      logo: "N",
+      tagline: "AI-Powered Presentations"
+    };
+    
+    // Ensure every slide has enhanced visuals
+    data.slides = data.slides.map((s, i) => ({ 
+      ...s, 
+      id: s.id || `slide-${i}`,
+      // Ensure speaker notes are comprehensive
+      speakerNotes: s.speakerNotes || `Detailed talking points for slide ${i + 1}. Include engagement questions and data insights.`,
+      // Ensure image prompts are detailed
+      imagePrompt: s.imagePrompt || `Professional ${config.imageStyle} style image related to ${s.title}`,
+      // Add default transition if missing
+      transition: s.transition || "fade"
+    }));
     
     return data;
 

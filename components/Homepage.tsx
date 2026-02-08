@@ -63,10 +63,10 @@ const Homepage: React.FC<HomepageProps> = ({ onNavigate }) => {
     <div className="max-w-7xl mx-auto space-y-12 animate-fade-in-up pb-12">
       <div className="text-center space-y-4 py-10">
         <h1 className="text-5xl font-extrabold tracking-tight text-slate-900">
-          Welcome to <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-600">SlidecraftAI</span>
+          Welcome to <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-600">NovagenAI</span>
         </h1>
         <p className="text-xl text-slate-500 max-w-2xl mx-auto">
-          Your all-in-one AI creative suite. Generate, edit, and convert content with the power of Gemini 3.
+          Your all-in-one AI creative suite. Generate, edit, and convert content with the power of advanced AI.
         </p>
       </div>
 

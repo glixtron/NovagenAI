@@ -6,8 +6,8 @@ export default defineConfig(({ mode }) => {
   return {
     plugins: [react()],
     define: {
-      // securely map process.env.API_KEY to the build environment
-      'process.env.API_KEY': JSON.stringify(env.API_KEY)
+      // securely map process.env.GEMINI_API_KEY to the build environment
+      'process.env.GEMINI_API_KEY': JSON.stringify(env.GEMINI_API_KEY)
     },
     build: {
       outDir: 'dist',

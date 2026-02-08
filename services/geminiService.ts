@@ -2,7 +2,7 @@ import { GoogleGenAI, Type } from "@google/genai";
 import { PresentationData, PresentationConfig, CatalogueDesign, Product, PromptRequest } from "../types";
 
 // Initialize Gemini Client
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
 const PRESENTATION_SYSTEM_INSTRUCTION = `
 You are an expert presentation designer and data analyst.

@@ -84,6 +84,19 @@ export const generatePresentationContent = async (
     const modelId = 'gemini-2.5-flash';
     
     console.log('🔑 API Key Check:', process.env.GEMINI_API_KEY ? 'Present' : 'Missing');
+    console.log('🤖 Using Multi-AI Service for enhanced generation');
+    
+    // Use multi-AI service for enhanced capabilities
+    const { generateMultiAIPresentation } = await import('./multiAIService');
+    
+    return await generateMultiAIPresentation(config, 'auto');
+    
+  } catch (error) {
+    console.error("❌ Enhanced presentation generation failed:", error);
+    
+    // Fallback to basic Gemini generation
+    const modelId = 'gemini-2.5-flash';
+    
     console.log('📝 Generating presentation for:', config.topic);
 
     const parts: any[] = [];
@@ -106,83 +119,69 @@ export const generatePresentationContent = async (
       Target Audience: ${config.audience}.
       Tone: ${config.tone}.
       Design Style: ${config.theme}.
-      Image Style for visuals: ${config.imageStyle}.
+      Image Style: ${config.imageStyle}.
       
       CRITICAL REQUIREMENTS:
       1. VISUAL EXCELLENCE:
          - EVERY slide MUST have a high-quality, content-relevant image
-         - Include at least 3 different chart types: bar charts, pie charts, line graphs
+         - Include at least 3 different chart types: bar, pie, line, area
          - Add maps if geographic data is relevant
-         - Include infographics and diagrams for complex concepts
-         - All visuals must be detailed and informative
+         - Include infographics for processes and timelines
+         - All visuals must be publication-ready
       
       2. CONTENT DEPTH:
-         - Provide detailed, expert-level information
-         - Include specific data points, statistics, and facts
-         - Add speaker notes with comprehensive talking points
+         - Provide expert-level information with specific data points
+         - Include realistic statistics and facts
+         - Add comprehensive speaker notes with talking points
          - Ensure logical flow with smooth transitions
       
-      3. BRANDING:
-         - Use "NOVAGENAI" as the exclusive brand
-         - White label design - no third-party references
-         - Professional, clean aesthetic
+      3. NOVAGENAI BRANDING:
+         - Use "NOVAGENAI" as the exclusive brand name
+         - White label design with professional appearance
+         - No third-party branding or references
       
-      4. VISUAL DIVERSITY:
-         - Mix of images, charts, graphs, maps, and diagrams
-         - Each visual should enhance understanding
-         - Ensure all graphics are publication-ready
-      
-      5. QUALITY STANDARDS:
+      4. QUALITY STANDARDS:
          - Every slide must be visually rich and informative
-         - Include transition suggestions between slides
-         - Add engagement questions in speaker notes
+         - Include engagement questions in speaker notes
+         - Add transition suggestions between slides
+         - Ensure all graphics are content-relevant
     `;
     
     parts.push({ text: prompt });
 
     const response = await ai.models.generateContent({
       model: modelId,
-      contents: {
-        parts: parts
-      },
+      contents: { parts },
       config: {
         systemInstruction: PRESENTATION_SYSTEM_INSTRUCTION,
         responseMimeType: "application/json",
         responseSchema: {
           type: Type.OBJECT,
           properties: {
-            title: { type: Type.STRING, description: "Main title" },
-            subtitle: { type: Type.STRING, description: "Subtitle" },
+            title: { type: Type.STRING },
+            subtitle: { type: Type.STRING },
             slides: {
               type: Type.ARRAY,
               items: {
                 type: Type.OBJECT,
                 properties: {
-                  id: { type: Type.STRING, description: "Unique ID (e.g. 'slide-1')" },
+                  id: { type: Type.STRING },
                   title: { type: Type.STRING },
-                  content: { 
-                    type: Type.ARRAY, 
-                    items: { type: Type.STRING },
-                    description: "3-4 bullet points" 
-                  },
+                  content: { type: Type.ARRAY, items: { type: Type.STRING } },
                   speakerNotes: { type: Type.STRING },
-                  imagePrompt: { type: Type.STRING, description: `A detailed description of a visual in ${config.imageStyle} style.` },
-                  transition: { type: Type.STRING, description: "Suggested transition to next slide" },
+                  imagePrompt: { type: Type.STRING },
+                  transition: { type: Type.STRING },
                   chart: {
                     type: Type.OBJECT,
-                    description: "Optional chart data if relevant.",
                     properties: {
                       type: { type: Type.STRING, enum: ["bar", "pie", "line", "area", "scatter"] },
                       title: { type: Type.STRING },
                       labels: { type: Type.ARRAY, items: { type: Type.STRING } },
-                      values: { type: Type.ARRAY, items: { type: Type.NUMBER } },
-                      seriesName: { type: Type.STRING }
-                    },
-                    required: ["type", "title", "labels", "values"]
+                      values: { type: Type.ARRAY, items: { type: Type.NUMBER } }
+                    }
                   },
                   map: {
                     type: Type.OBJECT,
-                    description: "Optional map data if geographic information is relevant.",
                     properties: {
                       type: { type: Type.STRING, enum: ["world", "country", "region", "city"] },
                       title: { type: Type.STRING },
@@ -192,7 +191,6 @@ export const generatePresentationContent = async (
                   },
                   infographic: {
                     type: Type.OBJECT,
-                    description: "Optional infographic data for processes or timelines.",
                     properties: {
                       type: { type: Type.STRING, enum: ["timeline", "process", "comparison", "statistics"] },
                       title: { type: Type.STRING },

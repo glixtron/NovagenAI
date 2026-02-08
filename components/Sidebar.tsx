@@ -1,7 +1,15 @@
 import React, { useState } from 'react';
-import { PresentationIcon, RefreshCcwIcon, ImageIcon, EditIcon, HomeIcon, LightbulbIcon, ShoppingBagIcon, SparklesIcon, MagicWandIcon } from './Icons';
 import { NavView } from '../types';
-import { generateRealImage } from '../services/geminiService';
+import { 
+  HomeIcon, 
+  PresentationIcon, 
+  RefreshCcwIcon, 
+  ImageIcon, 
+  EditIcon, 
+  LightbulbIcon, 
+  ShoppingBagIcon,
+  Wand2Icon
+} from './Icons';
 
 interface SidebarProps {
   currentView: NavView;
@@ -14,14 +22,15 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, onNavigate }) => {
   const [showLogoPrompt, setShowLogoPrompt] = useState(false);
   const [logoPrompt, setLogoPrompt] = useState('');
 
-  const navItems = [
-    { id: 'home', label: 'Dashboard', icon: HomeIcon },
+  const navigation = [
+    { id: 'home', label: 'Homepage', icon: HomeIcon },
     { id: 'presentation', label: 'Slides Generator', icon: PresentationIcon },
-    { id: 'catalogue-generator', label: 'Catalogue Creator', icon: ShoppingBagIcon },
-    { id: 'prompt-generator', label: 'Prompt Engineer', icon: LightbulbIcon },
     { id: 'converter', label: 'Smart Converter', icon: RefreshCcwIcon },
-    { id: 'image-editor', label: 'Magic Studio', icon: ImageIcon },
+    { id: 'image-editor', label: 'Image Magic', icon: ImageIcon },
     { id: 'pdf-editor', label: 'PDF Editor', icon: EditIcon },
+    { id: 'prompt-generator', label: 'Prompt Engineer', icon: LightbulbIcon },
+    { id: 'catalogue-generator', label: 'Catalogue Creator', icon: ShoppingBagIcon },
+    { id: 'image-generator', label: 'Image Generator', icon: Wand2Icon }
   ];
 
   const handleGenerateLogo = async () => {
@@ -32,14 +41,14 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, onNavigate }) => {
         // Enhance the user prompt to ensure it is a high-quality logo
         const enhancedPrompt = `High quality vector logo design, ${logoPrompt}, minimalist, professional, white background, flat design, icon only.`;
         // Use 1:1 aspect ratio for logo
-        const base64 = await generateRealImage(enhancedPrompt, '1:1');
-        setLogoUrl(base64);
-    } catch (e) {
-        console.error("Failed to generate logo", e);
+        const logoUrl = await generateRealImage(enhancedPrompt, '1:1');
+        setLogoUrl(logoUrl);
+    } catch (error) {
+        console.error('Failed to generate logo:', error);
     } finally {
         setIsGeneratingLogo(false);
-        setLogoPrompt('');
     }
+  };  setLogoPrompt('');
   };
 
   return (

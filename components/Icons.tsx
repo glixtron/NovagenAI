@@ -73,6 +73,16 @@ export const Volume2Icon = ({ className }: { className?: string }) => (
   </svg>
 );
 
+export const Wand2Icon = ({ className }: { className?: string }) => (
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+    <path d="m15 3-4 4-4 4-4v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2 2z" />
+    <path d="m9 18 6-6 6-6" />
+    <path d="m21 3-9 9-9" />
+    <path d="m9 9 6.5v6a3.5 3.5 0 0 1 3.5 3.5" />
+    <path d="m21 9v6a2 2 0 0 1 2 2" />
+  </svg>
+);
+
 export const CheckCircleIcon = ({ className }: { className?: string }) => (
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
     <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />

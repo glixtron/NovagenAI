@@ -30,7 +30,8 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, onNavigate }) => {
     { id: 'pdf-editor', label: 'PDF Editor', icon: EditIcon },
     { id: 'prompt-generator', label: 'Prompt Engineer', icon: LightbulbIcon },
     { id: 'catalogue-generator', label: 'Catalogue Creator', icon: ShoppingBagIcon },
-    { id: 'image-generator', label: 'Image Generator', icon: Wand2Icon }
+    { id: 'image-generator', label: 'Image Generator', icon: Wand2Icon },
+    { id: 'logo-designer', label: 'Logo Designer', icon: Wand2Icon }
   ];
 
   const handleGenerateLogo = async () => {

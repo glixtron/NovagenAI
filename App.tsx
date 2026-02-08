@@ -9,6 +9,7 @@ import Homepage from './components/Homepage';
 import PromptGenerator from './components/PromptGenerator';
 import CatalogueGenerator from './components/CatalogueGenerator';
 import PromptImageGenerator from './components/PromptImageGenerator';
+import LogoDesigner from './components/LogoDesigner';
 import { PresentationData, AppState, PresentationConfig, NavView } from './types';
 import { generatePresentationContent } from './services/geminiService';
 
@@ -111,8 +112,8 @@ const App: React.FC = () => {
           {/* View: PDF Editor */}
           {currentView === 'pdf-editor' && <PdfEditor />}
 
-          {/* View: Prompt Image Generator */}
-          {currentView === 'image-generator' && <PromptImageGenerator onNavigate={setCurrentView} />}
+          {/* View: Logo Designer */}
+          {currentView === 'logo-designer' && <LogoDesigner onNavigate={setCurrentView} />}
 
           {/* View: Prompt Generator */}
           {currentView === 'prompt-generator' && <PromptGenerator />}

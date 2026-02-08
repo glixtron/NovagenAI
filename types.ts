@@ -74,7 +74,7 @@ export enum AppState {
   ERROR = 'ERROR'
 }
 
-export type NavView = 'home' | 'presentation' | 'converter' | 'image-editor' | 'pdf-editor' | 'prompt-generator' | 'catalogue-generator' | 'image-generator';
+export type NavView = 'home' | 'presentation' | 'converter' | 'image-editor' | 'pdf-editor' | 'prompt-generator' | 'catalogue-generator' | 'image-generator' | 'logo-designer';
 
 export interface ConversionResult {
   content: string;

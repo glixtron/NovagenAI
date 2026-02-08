@@ -17,7 +17,27 @@ export default defineConfig(({ mode }) => {
     },
     build: {
       outDir: 'dist',
-      sourcemap: false // Disable source maps for security in production
+      sourcemap: false, // Disable source maps for security in production
+      rollupOptions: {
+        output: {
+          manualChunks: (id: string) => {
+            if (id.includes('multiAIService')) {
+              return {
+                entry: 'src/services/multiAIService.ts',
+                fileName: 'multiAIService.js',
+                name: 'Multi-AI Service'
+              };
+            }
+            if (id.includes('LogoDesigner')) {
+              return {
+                entry: 'src/components/LogoDesigner.tsx',
+                fileName: 'LogoDesigner.tsx',
+                name: 'Logo Designer'
+              };
+            }
+          }
+        }
+      }
     },
     server: {
       port: 3000

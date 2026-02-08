@@ -44,13 +44,13 @@ const App: React.FC = () => {
       <nav className="border-b border-white/50 bg-white/80 backdrop-blur-md sticky top-0 z-50 pl-0 md:pl-64 transition-all">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
           <div className="flex items-center space-x-2 md:hidden">
-            <div className="w-8 h-8 bg-gradient-to-tr from-blue-600 to-indigo-600 rounded-lg flex items-center justify-center text-white font-bold text-xl">S</div>
+            <div className="w-8 h-8 bg-gradient-to-tr from-blue-600 to-indigo-600 rounded-lg flex items-center justify-center text-white font-bold text-xl">N</div>
           </div>
           <div 
              className="hidden md:block text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-slate-800 to-slate-600 cursor-pointer"
              onClick={() => setCurrentView('home')}
           >
-             SlidecraftAI
+             NovagenAI
           </div>
           <div className="flex items-center space-x-4">
              <span className="text-xs font-medium px-2 py-1 bg-green-100 text-green-700 rounded-md border border-green-200">

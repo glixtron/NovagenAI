@@ -3,10 +3,10 @@ import { Wand2Icon, DownloadIcon, SparklesIcon, RefreshCcwIcon } from './Icons';
 import { generate4KLogo } from '../services/multiAIService';
 
 interface LogoDesignerProps {
-  onBack: () => void;
+  onNavigate?: (view: string) => void;
 }
 
-const LogoDesigner: React.FC<LogoDesignerProps> = ({ onBack }) => {
+const LogoDesigner: React.FC<LogoDesignerProps> = ({ onNavigate }) => {
   const [companyName, setCompanyName] = useState('');
   const [industry, setIndustry] = useState('');
   const [style, setStyle] = useState<'modern' | 'classic' | 'minimalist' | 'bold' | 'elegant'>('modern');
@@ -79,7 +79,7 @@ const LogoDesigner: React.FC<LogoDesignerProps> = ({ onBack }) => {
         <div className="max-w-7xl mx-auto flex items-center justify-between">
           <div className="flex items-center space-x-4">
             <button
-              onClick={onBack}
+              onClick={() => onNavigate?.('home')}
               className="flex items-center space-x-2 text-gray-600 hover:text-gray-900 transition-colors"
             >
               <span>← Back</span>

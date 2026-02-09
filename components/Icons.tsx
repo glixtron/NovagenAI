@@ -67,6 +67,31 @@ export const PaletteIcon = ({ className }: { className?: string }) => (
   </svg>
 );
 
+export const ZapIcon = ({ className }: { className?: string }) => (
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+    <polygon points="13 2 3 14 12 14 12 14 21 14 13 2" />
+    <line x1="2" y1="12" x2="7" y2="12" />
+    <line x1="17" y1="12" x2="22" y2="12" />
+  </svg>
+);
+
+export const ShieldIcon = ({ className }: { className?: string }) => (
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+    <path d="m12 2-8-3" />
+  </svg>
+);
+
+export const RocketIcon = ({ className }: { className?: string }) => (
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+    <path d="M4.5 16.5c-1.5 1.5-1.5 4.5 0 6l4.5-4.5m0 0L21 21" />
+    <path d="M17 3l-4.5 4.5m0 0L7 13" />
+    <path d="M17 3l-4.5 4.5m0 0L21 21" />
+    <path d="m21 21-4.5-4.5" />
+    <path d="M21 21l-4.5-4.5" />
+  </svg>
+);
+
 export const ChevronLeftIcon = ({ className }: { className?: string }) => (
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
     <path d="m15 18-6-6 6-6" />

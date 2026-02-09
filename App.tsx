@@ -41,22 +41,22 @@ const App: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 text-slate-900 font-sans selection:bg-blue-100">
-      {/* Navbar */}
-      <nav className="border-b border-white/50 bg-white/80 backdrop-blur-md sticky top-0 z-50 pl-0 md:pl-64 transition-all">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 text-slate-900 font-sans selection:bg-blue-100">
+      {/* Enhanced Navbar */}
+      <nav className="nav-glass sticky top-0 z-50 pl-0 md:pl-64 transition-all">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
           <div className="flex items-center space-x-2 md:hidden">
-            <div className="w-8 h-8 bg-gradient-to-tr from-blue-600 to-indigo-600 rounded-lg flex items-center justify-center text-white font-bold text-xl">N</div>
+            <div className="w-8 h-8 bg-gradient-to-tr from-blue-600 to-indigo-600 rounded-lg flex items-center justify-center text-white font-bold text-xl shadow-lg">N</div>
           </div>
           <div 
-             className="hidden md:block text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-slate-800 to-slate-600 cursor-pointer"
+             className="hidden md:block text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-600 via-purple-600 to-indigo-600 cursor-pointer hover:scale-105 transition-transform"
              onClick={() => setCurrentView('home')}
           >
              NovagenAI
           </div>
           <div className="flex items-center space-x-4">
-             <span className="text-xs font-medium px-2 py-1 bg-blue-100 text-blue-700 rounded-md border border-blue-200">
-                NovagenAI AI
+             <span className="text-xs font-medium px-3 py-1 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-full border border-blue-200 shadow-sm badge-glow">
+                NovagenAI Pro
              </span>
           </div>
         </div>
@@ -113,7 +113,7 @@ const App: React.FC = () => {
           {currentView === 'pdf-editor' && <PdfEditor />}
 
           {/* View: Logo Designer */}
-          {currentView === 'logo-designer' && <LogoDesigner onNavigate={setCurrentView} />}
+          {currentView === 'logo-designer' && <LogoDesigner />}
 
           {/* View: Prompt Generator */}
           {currentView === 'prompt-generator' && <PromptGenerator />}

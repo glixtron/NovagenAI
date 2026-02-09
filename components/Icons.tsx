@@ -48,6 +48,25 @@ export const RefreshIcon = ({ className }: { className?: string }) => (
   </svg>
 );
 
+export const GlobeIcon = ({ className }: { className?: string }) => (
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+    <circle cx="12" cy="12" r="10" />
+    <path d="M2 12h20" />
+    <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 0 4-10" />
+    <path d="M12 2a15.3 15.3 0 0 0-4 10 15.3 15.3 0 0 0-4-10" />
+  </svg>
+);
+
+export const PaletteIcon = ({ className }: { className?: string }) => (
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+    <circle cx="13.5" cy="6.5" r="3.5" fill="#ef4444" />
+    <circle cx="17.5" cy="10.5" r="2.5" fill="#3b82f6" />
+    <circle cx="8.5" cy="7.5" r="2.5" fill="#10b981" />
+    <circle cx="6.5" cy="12.5" r="2.5" fill="#f59e0b" />
+    <path d="M12 2v20M2 12h20" />
+  </svg>
+);
+
 export const ChevronLeftIcon = ({ className }: { className?: string }) => (
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
     <path d="m15 18-6-6 6-6" />

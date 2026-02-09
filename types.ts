@@ -20,6 +20,20 @@ export interface InfographicData {
   steps: string[];
 }
 
+export interface BrandColors {
+  primary: string;
+  secondary: string;
+  accent: string;
+  background: string;
+  text: string;
+  textLight: string;
+}
+
+export interface BrandFonts {
+  heading: string;
+  body: string;
+}
+
 export interface Slide {
   id: string; // Unique ID for React keys
   title: string;
@@ -31,6 +45,12 @@ export interface Slide {
   map?: MapData;
   infographic?: InfographicData;
   transition?: string; // Suggested transition to next slide
+  brandColors?: BrandColors; // Brand colors for this slide
+  layout?: {
+    templateId: string;
+    structure: any;
+    appliedAt: Date;
+  };
 }
 
 export type ThemeId = 'modern' | 'corporate' | 'minimal' | 'vibrant' | 'dark';
@@ -49,6 +69,8 @@ export interface PresentationData {
     company: string;
     logo: string;
     tagline: string;
+    colors?: BrandColors;
+    fonts?: BrandFonts;
   };
 }
 

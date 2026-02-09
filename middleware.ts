@@ -2,9 +2,13 @@ import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 import { getToken } from 'next-auth/jwt'
 
-// This middleware protects only specific routes, not the home page
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
+  
+  // Fix: Allow Next.js assets to pass through
+  if (pathname.startsWith('/_next') || pathname.includes('/static') || pathname.includes('favicon.ico')) {
+    return NextResponse.next()
+  }
   
   // 1. Get the token (session)
   const token = await getToken({ 

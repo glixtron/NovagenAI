@@ -20,6 +20,13 @@ import {
   User,
   LogOut
 } from 'lucide-react';
+import SlidesGenerator from './SlidesGenerator';
+import CatalogueCreator from './CatalogueCreator';
+import PromptEngineer from './PromptEngineer';
+import SmartConverter from './SmartConverter';
+import MagicStudio from './MagicStudio';
+import PDFEditor from './PDFEditor';
+import SettingsComponent from './Settings';
 
 interface ToolCard {
   id: string;
@@ -34,6 +41,7 @@ export default function Dashboard() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [darkMode, setDarkMode] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
+  const [activeView, setActiveView] = useState('dashboard');
 
   const tools: ToolCard[] = [
     {
@@ -81,15 +89,125 @@ export default function Dashboard() {
   ];
 
   const menuItems = [
-    { id: 'dashboard', name: 'Dashboard', icon: <Home className="w-5 h-5" />, active: true },
-    { id: 'slides', name: 'Slides Generator', icon: <Presentation className="w-5 h-5" />, active: false },
-    { id: 'catalogue', name: 'Catalogue Creator', icon: <FileText className="w-5 h-5" />, active: false },
-    { id: 'prompt', name: 'Prompt Engineer', icon: <MessageSquare className="w-5 h-5" />, active: false },
-    { id: 'converter', name: 'Smart Converter', icon: <RefreshCw className="w-5 h-5" />, active: false },
-    { id: 'studio', name: 'Magic Studio', icon: <Sparkles className="w-5 h-5" />, active: false },
-    { id: 'pdf', name: 'PDF Editor', icon: <FileEdit className="w-5 h-5" />, active: false },
-    { id: 'settings', name: 'Settings', icon: <Settings className="w-5 h-5" />, active: false },
+    { id: 'dashboard', name: 'Dashboard', icon: <Home className="w-5 h-5" />, active: activeView === 'dashboard' },
+    { id: 'slides', name: 'Slides Generator', icon: <Presentation className="w-5 h-5" />, active: activeView === 'slides' },
+    { id: 'catalogue', name: 'Catalogue Creator', icon: <FileText className="w-5 h-5" />, active: activeView === 'catalogue' },
+    { id: 'prompt', name: 'Prompt Engineer', icon: <MessageSquare className="w-5 h-5" />, active: activeView === 'prompt' },
+    { id: 'converter', name: 'Smart Converter', icon: <RefreshCw className="w-5 h-5" />, active: activeView === 'converter' },
+    { id: 'studio', name: 'Magic Studio', icon: <Sparkles className="w-5 h-5" />, active: activeView === 'studio' },
+    { id: 'pdf', name: 'PDF Editor', icon: <FileEdit className="w-5 h-5" />, active: activeView === 'pdf' },
+    { id: 'settings', name: 'Settings', icon: <Settings className="w-5 h-5" />, active: activeView === 'settings' },
   ];
+
+  const renderActiveView = () => {
+    switch (activeView) {
+      case 'slides':
+        return <SlidesGenerator />;
+      case 'catalogue':
+        return <CatalogueCreator />;
+      case 'prompt':
+        return <PromptEngineer />;
+      case 'converter':
+        return <SmartConverter />;
+      case 'studio':
+        return <MagicStudio />;
+      case 'pdf':
+        return <PDFEditor />;
+      case 'settings':
+        return <SettingsComponent />;
+      default:
+        return (
+          <div>
+            {/* Dashboard Header */}
+            <div className="mb-8">
+              <h2 className={`text-3xl font-bold ${darkMode ? 'text-white' : 'text-gray-900'} mb-2`}>
+                Welcome back, {session?.user?.name || 'User'}! 👋
+              </h2>
+              <p className={`${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                Here's what's happening with your AI creative suite today.
+              </p>
+            </div>
+
+            {/* Stats Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+              <div className={`${darkMode ? 'bg-gray-800' : 'bg-white'} p-6 rounded-lg shadow-sm border ${darkMode ? 'border-gray-700' : 'border-gray-200'}`}>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>Total Projects</p>
+                    <p className={`text-2xl font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>24</p>
+                  </div>
+                  <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
+                    <Presentation className="w-6 h-6 text-blue-600" />
+                  </div>
+                </div>
+              </div>
+              <div className={`${darkMode ? 'bg-gray-800' : 'bg-white'} p-6 rounded-lg shadow-sm border ${darkMode ? 'border-gray-700' : 'border-gray-200'}`}>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>AI Credits</p>
+                    <p className={`text-2xl font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>1,250</p>
+                  </div>
+                  <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
+                    <Sparkles className="w-6 h-6 text-green-600" />
+                  </div>
+                </div>
+              </div>
+              <div className={`${darkMode ? 'bg-gray-800' : 'bg-white'} p-6 rounded-lg shadow-sm border ${darkMode ? 'border-gray-700' : 'border-gray-200'}`}>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>This Month</p>
+                    <p className={`text-2xl font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>89</p>
+                  </div>
+                  <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
+                    <FileText className="w-6 h-6 text-purple-600" />
+                  </div>
+                </div>
+              </div>
+              <div className={`${darkMode ? 'bg-gray-800' : 'bg-white'} p-6 rounded-lg shadow-sm border ${darkMode ? 'border-gray-700' : 'border-gray-200'}`}>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>Saved</p>
+                    <p className={`text-2xl font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>156</p>
+                  </div>
+                  <div className="w-12 h-12 bg-orange-100 rounded-lg flex items-center justify-center">
+                    <FileEdit className="w-6 h-6 text-orange-600" />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Feature Cards Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {tools.map((tool) => (
+                <div
+                  key={tool.id}
+                  onClick={() => setActiveView(tool.id)}
+                  className={`${darkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'} p-6 rounded-lg shadow-sm border hover:shadow-md transition-all duration-300 hover:scale-105 cursor-pointer group`}
+                >
+                  <div className="flex items-center justify-between mb-4">
+                    <div className={`w-12 h-12 ${tool.color} rounded-lg flex items-center justify-center text-white`}>
+                      {tool.icon}
+                    </div>
+                    <div className={`w-8 h-8 rounded-full ${darkMode ? 'bg-gray-700' : 'bg-gray-100'} flex items-center justify-center group-hover:bg-cyan-100 transition-colors`}>
+                      <span className="text-cyan-500">→</span>
+                    </div>
+                  </div>
+                  <h3 className={`text-lg font-semibold ${darkMode ? 'text-white' : 'text-gray-900'} mb-2`}>
+                    {tool.name}
+                  </h3>
+                  <p className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'} mb-4`}>
+                    {tool.description}
+                  </p>
+                  <button className="w-full bg-gradient-to-r from-cyan-500 to-blue-500 text-white py-2 px-4 rounded-lg hover:from-cyan-600 hover:to-blue-600 transition-all duration-300 font-medium">
+                    Launch Tool →
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        );
+    }
+  };
 
   return (
     <div className={`min-h-screen ${darkMode ? 'bg-gray-900' : 'bg-gray-50'}`}>
@@ -181,6 +299,7 @@ export default function Dashboard() {
             {menuItems.map((item) => (
               <button
                 key={item.id}
+                onClick={() => setActiveView(item.id)}
                 className={`w-full flex items-center space-x-3 px-4 py-3 rounded-lg transition-colors ${
                   item.active
                     ? 'bg-gradient-to-r from-cyan-500 to-blue-500 text-white'
@@ -198,91 +317,7 @@ export default function Dashboard() {
 
         {/* Main Content Area */}
         <main className={`flex-1 ${sidebarOpen ? 'lg:ml-0' : 'lg:ml-0'} p-6`}>
-          {/* Dashboard Header */}
-          <div className="mb-8">
-            <h2 className={`text-3xl font-bold ${darkMode ? 'text-white' : 'text-gray-900'} mb-2`}>
-              Welcome back, {session?.user?.name || 'User'}! 👋
-            </h2>
-            <p className={`${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-              Here's what's happening with your AI creative suite today.
-            </p>
-          </div>
-
-          {/* Stats Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-            <div className={`${darkMode ? 'bg-gray-800' : 'bg-white'} p-6 rounded-lg shadow-sm border ${darkMode ? 'border-gray-700' : 'border-gray-200'}`}>
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>Total Projects</p>
-                  <p className={`text-2xl font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>24</p>
-                </div>
-                <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
-                  <Presentation className="w-6 h-6 text-blue-600" />
-                </div>
-              </div>
-            </div>
-            <div className={`${darkMode ? 'bg-gray-800' : 'bg-white'} p-6 rounded-lg shadow-sm border ${darkMode ? 'border-gray-700' : 'border-gray-200'}`}>
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>AI Credits</p>
-                  <p className={`text-2xl font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>1,250</p>
-                </div>
-                <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
-                  <Sparkles className="w-6 h-6 text-green-600" />
-                </div>
-              </div>
-            </div>
-            <div className={`${darkMode ? 'bg-gray-800' : 'bg-white'} p-6 rounded-lg shadow-sm border ${darkMode ? 'border-gray-700' : 'border-gray-200'}`}>
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>This Month</p>
-                  <p className={`text-2xl font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>89</p>
-                </div>
-                <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
-                  <FileText className="w-6 h-6 text-purple-600" />
-                </div>
-              </div>
-            </div>
-            <div className={`${darkMode ? 'bg-gray-800' : 'bg-white'} p-6 rounded-lg shadow-sm border ${darkMode ? 'border-gray-700' : 'border-gray-200'}`}>
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>Saved</p>
-                  <p className={`text-2xl font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>156</p>
-                </div>
-                <div className="w-12 h-12 bg-orange-100 rounded-lg flex items-center justify-center">
-                  <FileEdit className="w-6 h-6 text-orange-600" />
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Feature Cards Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {tools.map((tool) => (
-              <div
-                key={tool.id}
-                className={`${darkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'} p-6 rounded-lg shadow-sm border hover:shadow-md transition-all duration-300 hover:scale-105 cursor-pointer group`}
-              >
-                <div className="flex items-center justify-between mb-4">
-                  <div className={`w-12 h-12 ${tool.color} rounded-lg flex items-center justify-center text-white`}>
-                    {tool.icon}
-                  </div>
-                  <div className={`w-8 h-8 rounded-full ${darkMode ? 'bg-gray-700' : 'bg-gray-100'} flex items-center justify-center group-hover:bg-cyan-100 transition-colors`}>
-                    <span className="text-cyan-500">→</span>
-                  </div>
-                </div>
-                <h3 className={`text-lg font-semibold ${darkMode ? 'text-white' : 'text-gray-900'} mb-2`}>
-                  {tool.name}
-                </h3>
-                <p className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'} mb-4`}>
-                  {tool.description}
-                </p>
-                <button className="w-full bg-gradient-to-r from-cyan-500 to-blue-500 text-white py-2 px-4 rounded-lg hover:from-cyan-600 hover:to-blue-600 transition-all duration-300 font-medium">
-                  Launch Tool →
-                </button>
-              </div>
-            ))}
-          </div>
+          {renderActiveView()}
         </main>
       </div>
 

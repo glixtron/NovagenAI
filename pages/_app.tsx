@@ -1,17 +1,11 @@
-'use client';
+import '../styles/globals.css'
+import type { AppProps } from 'next/app'
+import { SessionProvider } from 'next-auth/react'
 
-import { SessionProvider } from 'next-auth/react';
-import { ReactNode } from 'react';
-
-interface AppProps {
-  children: ReactNode;
-  session?: any;
-}
-
-export default function App({ children, session }: AppProps) {
+export default function App({ Component, pageProps: { session, ...pageProps } }: AppProps) {
   return (
     <SessionProvider session={session}>
-      {children}
+      <Component {...pageProps} />
     </SessionProvider>
-  );
+  )
 }

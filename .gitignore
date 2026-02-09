@@ -86,3 +86,6 @@ Thumbs.db
 
 # Vite build output
 dist/
+.vercel
+.env*.local
+.env.local

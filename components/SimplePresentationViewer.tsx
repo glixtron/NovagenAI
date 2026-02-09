@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { PresentationData, Slide, ChartData, MapData, InfographicData } from '../types';
-import { ChevronLeftIcon, ChevronRightIcon, DownloadIcon, PlayIcon, Volume2Icon } from './Icons';
+import { ChevronLeftIcon, ChevronRightIcon, PlayIcon, Volume2Icon, DownloadIcon, SparklesIcon } from './Icons';
+import { generateRealImage } from '../services/geminiService';
+import { Slide, PresentationData, ChartData, MapData, InfographicData } from '../types';
+import PptxGenJS from 'pptxgenjs';
 
 interface SimplePresentationViewerProps {
   presentation: PresentationData;
@@ -17,7 +19,21 @@ const SimplePresentationViewer: React.FC<SimplePresentationViewerProps> = ({ pre
 
   // Initialize with pre-generated images from presentation data
   const [generatedImages, setGeneratedImages] = useState<{ [key: string]: string }>({});
-  
+
+  // Generate missing images on component mount
+  useEffect(() => {
+    const generateMissingImages = async () => {
+      for (const slide of presentation.slides) {
+        if (!generatedImages[slide.id]) {
+          await generateSlideImage(slide.id);
+        }
+      }
+    };
+    
+    // Auto-generate images for slides that don't have them
+    generateMissingImages();
+  }, [presentation.slides]);
+
   useEffect(() => {
     const preGeneratedImages: { [key: string]: string } = {};
     presentation.slides.forEach(slide => {
@@ -139,6 +155,17 @@ const SimplePresentationViewer: React.FC<SimplePresentationViewerProps> = ({ pre
       alert('Failed to generate PowerPoint. Please try again.');
     } finally {
       setIsDownloading(false);
+    }
+  };
+
+  const generateSlideImage = async (slideId: string) => {
+    try {
+      console.log(`🎨 Generating image for slide: ${slideId}`);
+      const imageUrl = await generateRealImage(slide.imagePrompt, presentation.aspectRatio || '16:9');
+      setGeneratedImages(prev => ({ ...prev, [slideId]: imageUrl }));
+      console.log(`✅ Image generated successfully for slide: ${slideId}`);
+    } catch (error) {
+      console.error(`❌ Failed to generate image for slide ${slideId}:`, error);
     }
   };
 
@@ -313,7 +340,20 @@ const SimplePresentationViewer: React.FC<SimplePresentationViewerProps> = ({ pre
     return (
       <div className="space-y-6">
         {/* Title */}
-        <h2 className="text-3xl font-bold text-gray-900">{slide.title}</h2>
+        <div className="relative pr-16 slide-title-container">
+          <h2 className="text-3xl font-bold text-gray-900">{slide.title}</h2>
+          
+          {/* Generate Image Button - Only show if no image */}
+          {!generatedImages[slide.id] && (
+            <button
+              onClick={() => generateSlideImage(slide.id)}
+              className="absolute top-0 right-0 px-3 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 flex items-center space-x-2 generate-image-icon"
+            >
+              <SparklesIcon className="w-4 h-4" />
+              Generate Image
+            </button>
+          )}
+        </div>
         
         {/* Content */}
         <div className="space-y-3">

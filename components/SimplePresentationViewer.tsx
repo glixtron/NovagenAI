@@ -36,7 +36,7 @@ const SimplePresentationViewer: React.FC<SimplePresentationViewerProps> = ({ pre
     
     // Auto-generate images for slides that don't have them - NO USER INTERACTION NEEDED
     generateMissingImages();
-  }, [presentation.slides]);
+  }, [presentation.slides, generatedImages]);
 
   useEffect(() => {
     const preGeneratedImages: { [key: string]: string } = {};

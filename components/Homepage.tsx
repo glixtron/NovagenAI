@@ -74,26 +74,26 @@ const Homepage: React.FC<HomepageProps> = ({ onNavigate }) => {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Main Content - Bento Grid */}
-      <div className="p-8">
+      <div className="p-6">
         <div className="max-w-7xl mx-auto">
           {/* Header */}
-          <div className="flex items-center justify-between mb-8">
+          <div className="flex items-center justify-between mb-6">
             <div>
-              <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
-              <p className="text-gray-600">Welcome back! Here's what you can do today.</p>
+              <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
+              <p className="text-sm text-gray-500">Welcome back! Here's what you can do today.</p>
             </div>
-            <div className="flex items-center space-x-4">
-              <div className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-semibold">
+            <div className="flex items-center space-x-3">
+              <div className="px-2 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-medium">
                 Gemini 3.5 Powered
               </div>
-              <div className="px-3 py-1 bg-green-100 text-green-700 rounded-full text-xs font-semibold">
+              <div className="px-2 py-1 bg-green-100 text-green-700 rounded-full text-xs font-medium">
                 API Status: Active
               </div>
             </div>
           </div>
 
           {/* Bento Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {features.map((feature, index) => {
               const Icon = feature.icon;
               return (
@@ -101,9 +101,10 @@ const Homepage: React.FC<HomepageProps> = ({ onNavigate }) => {
                   key={feature.id}
                   onClick={() => onNavigate(feature.id as NavView)}
                   className="group bg-white rounded-[24px] p-6 shadow-sm hover:shadow-xl border border-gray-200 transition-all duration-300 text-left relative overflow-hidden"
+                  style={{ boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)' }}
                 >
                   {/* Decorative Blob */}
-                  <div className={`absolute top-0 right-0 w-24 h-24 bg-gradient-to-br ${feature.color} opacity-10 rounded-full blur-xl transition-opacity group-hover:opacity-20`}></div>
+                  <div className={`absolute top-0 right-0 w-20 h-20 bg-gradient-to-br ${feature.color} opacity-10 rounded-full blur-xl transition-opacity group-hover:opacity-20`}></div>
                   
                   {/* Icon */}
                   <div className={`w-12 h-12 rounded-2xl bg-gradient-to-br ${feature.color} flex items-center justify-center mb-4 group-hover:scale-110 transition-transform duration-300 shadow-sm`}>
@@ -112,11 +113,11 @@ const Homepage: React.FC<HomepageProps> = ({ onNavigate }) => {
                   
                   {/* Content */}
                   <div className="relative z-10">
-                    <h3 className="text-xl font-bold text-gray-900 mb-2">
+                    <h3 className="text-lg font-bold text-gray-900 mb-2">
                       {feature.title}
                     </h3>
                     
-                    <p className="text-gray-600 text-sm leading-relaxed mb-4">
+                    <p className="text-sm text-gray-600 leading-relaxed mb-4">
                       {feature.desc}
                     </p>
 

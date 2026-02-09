@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useRef } from 'react';
-import { Presentation, Download, Loader2, Plus, Trash2, Image as ImageIcon, BarChart3, MapPin, Users, TrendingUp, Zap, Eye, Share2, Copy, FileText } from 'lucide-react';
+import { useState, useRef, useEffect } from 'react';
+import { Presentation, Download, Loader2, Plus, Trash2, Image as ImageIcon, BarChart3, MapPin, Users, TrendingUp, Zap, Eye, Share2, Copy, FileText, Settings, Palette, Type, Layout, Sparkles, Clock, Target, Brain, Globe, ChevronRight, Play, Pause, RotateCcw, Save, Upload, Filter, Search, Grid3x3, List, Star, MessageSquare, TrendingDown, Award, BookOpen, Briefcase, GraduationCap, Heart, DollarSign } from 'lucide-react';
 
 interface Slide {
   id: string;
@@ -13,19 +13,83 @@ interface Slide {
   duration?: number;
   charts?: ChartData[];
   images?: ImageData[];
+  layout?: 'title-only' | 'title-content' | 'two-column' | 'content-only' | 'image-text' | 'text-image' | 'chart-text' | 'full-image';
+  backgroundColor?: string;
+  textColor?: string;
+  fontFamily?: string;
+  fontSize?: 'small' | 'medium' | 'large' | 'x-large';
+  animations?: AnimationData[];
+  metadata?: SlideMetadata;
 }
 
 interface ChartData {
-  type: 'bar' | 'line' | 'pie' | 'scatter';
+  type: 'bar' | 'line' | 'pie' | 'scatter' | 'area' | 'radar' | 'donut';
   title: string;
   data: any[];
   color?: string;
+  animated?: boolean;
+  interactive?: boolean;
 }
 
 interface ImageData {
   url: string;
   caption: string;
-  position: 'left' | 'right' | 'center' | 'background';
+  position: 'left' | 'right' | 'center' | 'background' | 'top' | 'bottom';
+  size?: 'small' | 'medium' | 'large' | 'full';
+  filter?: 'none' | 'blur' | 'grayscale' | 'sepia' | 'vintage';
+}
+
+interface AnimationData {
+  type: 'fade' | 'slide' | 'zoom' | 'bounce' | 'rotate' | 'flip';
+  target: 'title' | 'content' | 'image' | 'chart' | 'slide';
+  duration: number;
+  delay?: number;
+  direction?: 'left' | 'right' | 'up' | 'down';
+}
+
+interface SlideMetadata {
+  estimatedReadTime: number;
+  engagementScore: number;
+  complexity: 'low' | 'medium' | 'high';
+  keywords: string[];
+  accessibilityScore: number;
+}
+
+interface PresentationConfig {
+  topic: string;
+  audience: 'executive' | 'technical' | 'academic' | 'client-facing' | 'general';
+  purpose: 'pitch-deck' | 'quarterly-review' | 'training' | 'conference' | 'report' | 'proposal';
+  industry: 'tech' | 'finance' | 'healthcare' | 'education' | 'marketing' | 'consulting' | 'other';
+  tone: 'formal' | 'persuasive' | 'educational' | 'inspirational' | 'conversational';
+  duration: number;
+  brandColors?: string[];
+  logo?: string;
+  customFonts?: string[];
+}
+
+interface Template {
+  id: string;
+  name: string;
+  description: string;
+  category: string;
+  preview: string;
+  layouts: string[];
+  colorScheme: string[];
+  typography: {
+    heading: string;
+    body: string;
+  };
+  popularity: number;
+  isPremium?: boolean;
+}
+
+interface CollaborationUser {
+  id: string;
+  name: string;
+  avatar: string;
+  color: string;
+  isActive: boolean;
+  cursor?: { slide: number; x: number; y: number };
 }
 
 export default function SlidesGenerator() {
@@ -38,8 +102,33 @@ export default function SlidesGenerator() {
   const [includeCharts, setIncludeCharts] = useState(true);
   const [includeImages, setIncludeImages] = useState(true);
   const [includeTransitions, setIncludeTransitions] = useState(true);
-  const [exportFormat, setExportFormat] = useState<'pptx' | 'pdf' | 'html'>('pptx');
+  const [exportFormat, setExportFormat] = useState<'pptx' | 'pdf' | 'html' | 'video'>('pptx');
   const fileInputRef = useRef<HTMLInputElement>(null);
+  
+  // Advanced state management
+  const [config, setConfig] = useState<PresentationConfig>({
+    topic: '',
+    audience: 'general',
+    purpose: 'conference',
+    industry: 'tech',
+    tone: 'formal',
+    duration: 30
+  });
+  const [selectedTemplate, setSelectedTemplate] = useState<Template | null>(null);
+  const [viewMode, setViewMode] = useState<'edit' | 'preview' | 'outline' | 'notes'>('edit');
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [autoPlayInterval, setAutoPlayInterval] = useState<NodeJS.Timeout | null>(null);
+  const [collaborators, setCollaborators] = useState<CollaborationUser[]>([]);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [showAIPanel, setShowAIPanel] = useState(false);
+  const [showTemplates, setShowTemplates] = useState(false);
+  const [showBrandSettings, setShowBrandSettings] = useState(false);
+  const [showAnalytics, setShowAnalytics] = useState(false);
+  const [fontSize, setFontSize] = useState<'small' | 'medium' | 'large' | 'x-large'>('medium');
+  const [fontFamily, setFontFamily] = useState('Inter');
+  const [brandColors, setBrandColors] = useState(['#00acc1', '#1a237e', '#ffffff', '#000000']);
+  const [animationEnabled, setAnimationEnabled] = useState(true);
+  const [accessibilityMode, setAccessibilityMode] = useState(false);
 
   const presentationStyles = [
     { id: 'professional', name: 'Professional', description: 'Clean corporate style' },
@@ -47,6 +136,88 @@ export default function SlidesGenerator() {
     { id: 'academic', name: 'Academic', description: 'Research-focused' },
     { id: 'minimal', name: 'Minimal', description: 'Simple and clean' },
     { id: 'modern', name: 'Modern', description: 'Contemporary design' },
+  ];
+
+  const templates: Template[] = [
+    {
+      id: 'tech-pitch',
+      name: 'Tech Startup Pitch',
+      description: 'Modern pitch deck for technology startups',
+      category: 'Business',
+      preview: '/templates/tech-pitch.jpg',
+      layouts: ['title-content', 'two-column', 'chart-text'],
+      colorScheme: ['#00acc1', '#1a237e', '#ffffff', '#000000'],
+      typography: { heading: 'Inter', body: 'Inter' },
+      popularity: 95
+    },
+    {
+      id: 'academic-research',
+      name: 'Academic Research',
+      description: 'Professional research presentation template',
+      category: 'Education',
+      preview: '/templates/academic.jpg',
+      layouts: ['title-content', 'two-column', 'content-only'],
+      colorScheme: ['#2e7d32', '#1b5e20', '#ffffff', '#000000'],
+      typography: { heading: 'Georgia', body: 'Times New Roman' },
+      popularity: 88
+    },
+    {
+      id: 'marketing-campaign',
+      name: 'Marketing Campaign',
+      description: 'Eye-catching marketing presentation',
+      category: 'Marketing',
+      preview: '/templates/marketing.jpg',
+      layouts: ['image-text', 'full-image', 'title-only'],
+      colorScheme: ['#ff6b6b', '#4ecdc4', '#ffffff', '#2d3436'],
+      typography: { heading: 'Montserrat', body: 'Open Sans' },
+      popularity: 92
+    },
+    {
+      id: 'financial-report',
+      name: 'Financial Report',
+      description: 'Professional financial analysis presentation',
+      category: 'Finance',
+      preview: '/templates/financial.jpg',
+      layouts: ['chart-text', 'two-column', 'title-content'],
+      colorScheme: ['#1565c0', '#0d47a1', '#ffffff', '#000000'],
+      typography: { heading: 'Roboto', body: 'Roboto' },
+      popularity: 85
+    }
+  ];
+
+  const industries = [
+    { id: 'tech', name: 'Technology', icon: Brain },
+    { id: 'finance', name: 'Finance', icon: DollarSign },
+    { id: 'healthcare', name: 'Healthcare', icon: Heart },
+    { id: 'education', name: 'Education', icon: BookOpen },
+    { id: 'marketing', name: 'Marketing', icon: TrendingUp },
+    { id: 'consulting', name: 'Consulting', icon: Briefcase },
+    { id: 'other', name: 'Other', icon: Globe }
+  ];
+
+  const audiences = [
+    { id: 'executive', name: 'Executive Team', description: 'C-level executives and senior management' },
+    { id: 'technical', name: 'Technical Team', description: 'Engineers and technical professionals' },
+    { id: 'academic', name: 'Academic', description: 'Researchers and academic professionals' },
+    { id: 'client-facing', name: 'Clients', description: 'External clients and customers' },
+    { id: 'general', name: 'General Audience', description: 'Mixed audience with varied backgrounds' }
+  ];
+
+  const purposes = [
+    { id: 'pitch-deck', name: 'Pitch Deck', description: 'Investor pitch and fundraising' },
+    { id: 'quarterly-review', name: 'Quarterly Review', description: 'Business performance review' },
+    { id: 'training', name: 'Training', description: 'Educational and training content' },
+    { id: 'conference', name: 'Conference', description: 'Conference presentations and talks' },
+    { id: 'report', name: 'Report', description: 'Research and analytical reports' },
+    { id: 'proposal', name: 'Proposal', description: 'Business and project proposals' }
+  ];
+
+  const tones = [
+    { id: 'formal', name: 'Formal', description: 'Professional and authoritative tone' },
+    { id: 'persuasive', name: 'Persuasive', description: 'Convincing and influential tone' },
+    { id: 'educational', name: 'Educational', description: 'Informative and teaching-focused' },
+    { id: 'inspirational', name: 'Inspirational', description: 'Motivating and uplifting tone' },
+    { id: 'conversational', name: 'Conversational', description: 'Friendly and approachable tone' }
   ];
 
   const generateSlides = async () => {
@@ -59,51 +230,46 @@ export default function SlidesGenerator() {
       
       const generatedSlides: Slide[] = [];
       
-      for (let i = 1; i <= slideCount; i++) {
+      // AI-powered outline generation based on config
+      const outline = generateOutline(topic, config);
+      
+      for (let i = 0; i < Math.min(slideCount, 50); i++) {
+        const slideData = outline[i];
         let slideContent = '';
-        let slideTitle = '';
+        let slideTitle = slideData.title;
         let charts: ChartData[] = [];
         let images: ImageData[] = [];
+        let animations: AnimationData[] = [];
+        let layout: Slide['layout'] = 'title-content';
         
-        switch (i) {
-          case 1:
-            slideTitle = `Introduction to ${topic}`;
-            slideContent = `Welcome to this comprehensive presentation on ${topic}. Today we'll explore the key concepts, applications, and future implications of this important topic.`;
-            if (includeCharts) {
-              charts.push({
-                type: 'bar',
-                title: `${topic} Market Growth`,
-                data: [
-                  { year: '2020', value: 45 },
-                  { year: '2021', value: 62 },
-                  { year: '2022', value: 78 },
-                  { year: '2023', value: 95 },
-                  { year: '2024', value: 120 }
-                ],
-                color: '#00acc1'
+        // Generate content based on slide type
+        switch (slideData.type) {
+          case 'title':
+            layout = 'title-only';
+            slideContent = slideData.content;
+            if (animationEnabled) {
+              animations.push({
+                type: 'fade',
+                target: 'title',
+                duration: 1000,
+                delay: 200
               });
             }
             break;
             
-          case 2:
-            slideTitle = `Key Concepts of ${topic}`;
-            slideContent = `${topic} encompasses several fundamental concepts that are essential for understanding its impact and potential. Let's explore these core ideas in detail.`;
-            if (includeCharts) {
-              charts.push({
-                type: 'pie',
-                title: `${topic} Components`,
-                data: [
-                  { category: 'Core', value: 35 },
-                  { category: 'Advanced', value: 25 },
-                  { category: 'Applications', value: 40 }
-                ],
-                color: '#1a237e'
-              });
+          case 'content':
+            layout = 'title-content';
+            slideContent = slideData.content;
+            if (includeCharts && Math.random() > 0.5) {
+              charts.push(generateChart(topic, i));
+              layout = 'chart-text';
             }
             break;
             
-          case 3:
-            slideTitle = `Applications in Industry`;
+          case 'data':
+            layout = 'chart-text';
+            slideContent = slideData.content;
+            charts.push(generateChart(topic, i));
             slideContent = `The practical applications of ${topic} span across multiple sectors, transforming how businesses and organizations operate in the modern world.`;
             if (includeImages) {
               images.push({
@@ -361,6 +527,182 @@ export default function SlidesGenerator() {
         </div>
       </div>
     );
+  };
+
+  // Helper functions for AI generation
+  const generateOutline = (topic: string, config: PresentationConfig) => {
+    const outlines = [];
+    
+    // Title slide
+    outlines.push({
+      title: topic,
+      content: `A comprehensive ${config.purpose.replace('-', ' ')} on ${topic}`,
+      type: 'title',
+      complexity: 'low' as const
+    });
+    
+    // Introduction
+    outlines.push({
+      title: `Introduction to ${topic}`,
+      content: generateContent('introduction', topic, config),
+      type: 'content',
+      complexity: 'medium' as const
+    });
+    
+    // Key concepts (2-3 slides)
+    for (let i = 1; i <= 2; i++) {
+      outlines.push({
+        title: `Key Concept ${i}: ${generateConcept(topic, i)}`,
+        content: generateContent('concept', topic, config),
+        type: 'content',
+        complexity: 'medium' as const
+      });
+    }
+    
+    // Data/Analytics slide
+    if (includeCharts) {
+      outlines.push({
+        title: `${topic} Analytics & Insights`,
+        content: generateContent('data', topic, config),
+        type: 'data',
+        complexity: 'high' as const
+      });
+    }
+    
+    // Visual/Case study slide
+    if (includeImages) {
+      outlines.push({
+        title: `Case Study: ${topic} in Action`,
+        content: generateContent('case', topic, config),
+        type: 'image',
+        complexity: 'medium' as const
+      });
+    }
+    
+    // Additional content slides
+    for (let i = 1; i <= Math.max(0, slideCount - 6); i++) {
+      outlines.push({
+        title: `${generateSectionTitle(topic, i)}`,
+        content: generateContent('section', topic, config),
+        type: 'content',
+        complexity: 'medium' as const
+      });
+    }
+    
+    // Conclusion
+    outlines.push({
+      title: `Conclusion & Next Steps`,
+      content: generateContent('conclusion', topic, config),
+      type: 'conclusion',
+      complexity: 'low' as const
+    });
+    
+    return outlines;
+  };
+  
+  const generateContent = (type: string, topic: string, config: PresentationConfig): string => {
+    const contents = {
+      introduction: `Welcome to this comprehensive ${config.purpose.replace('-', ' ')} on ${topic}. Today we'll explore fundamental concepts, practical applications, and future implications of this important topic in ${config.industry} industry.`,
+      concept: `This concept represents a crucial aspect of ${topic} that deserves careful consideration. Understanding this principle is essential for anyone working in or studying this field.`,
+      data: `The data presented here demonstrates significant impact and growth potential of ${topic}. These metrics provide valuable insights into current trends and future projections.`,
+      case: `This real-world example illustrates how ${topic} is being successfully implemented in practice. The results showcase practical benefits and measurable outcomes.`,
+      section: `Building on our previous discussion, this section delves deeper into nuances of ${topic}. We'll examine advanced techniques and best practices.`,
+      conclusion: `In summary, ${topic} represents a significant opportunity for innovation and growth. The key takeaways from this presentation highlight the importance of strategic implementation and continuous improvement.`
+    };
+    
+    return contents[type as keyof typeof contents] || contents.section;
+  };
+  
+  const generateChart = (topic: string, slideIndex: number): ChartData => {
+    const chartTypes: ChartData['type'][] = ['bar', 'line', 'pie', 'area', 'radar', 'donut'];
+    const type = chartTypes[slideIndex % chartTypes.length];
+    
+    return {
+      type,
+      title: `${topic} Performance Metrics`,
+      data: generateChartData(type),
+      color: brandColors[0],
+      animated: animationEnabled,
+      interactive: true
+    };
+  };
+  
+  const generateChartData = (type: ChartData['type']) => {
+    switch (type) {
+      case 'bar':
+      case 'line':
+      case 'area':
+        return [
+          { month: 'Jan', value: Math.floor(Math.random() * 100) + 20 },
+          { month: 'Feb', value: Math.floor(Math.random() * 100) + 20 },
+          { month: 'Mar', value: Math.floor(Math.random() * 100) + 20 },
+          { month: 'Apr', value: Math.floor(Math.random() * 100) + 20 },
+          { month: 'May', value: Math.floor(Math.random() * 100) + 20 },
+          { month: 'Jun', value: Math.floor(Math.random() * 100) + 20 }
+        ];
+      case 'pie':
+      case 'donut':
+        return [
+          { category: 'Category A', value: Math.floor(Math.random() * 40) + 10 },
+          { category: 'Category B', value: Math.floor(Math.random() * 40) + 10 },
+          { category: 'Category C', value: Math.floor(Math.random() * 40) + 10 },
+          { category: 'Category D', value: Math.floor(Math.random() * 40) + 10 }
+        ];
+      case 'radar':
+        return [
+          { metric: 'Performance', value: Math.floor(Math.random() * 40) + 60 },
+          { metric: 'Quality', value: Math.floor(Math.random() * 40) + 60 },
+          { metric: 'Efficiency', value: Math.floor(Math.random() * 40) + 60 },
+          { metric: 'Innovation', value: Math.floor(Math.random() * 40) + 60 },
+          { metric: 'Reliability', value: Math.floor(Math.random() * 40) + 60 }
+        ];
+      default:
+        return [];
+    }
+  };
+  
+  const generateConcept = (topic: string, index: number): string => {
+    const concepts = [
+      'Strategic Framework',
+      'Implementation Strategy',
+      'Best Practices',
+      'Key Metrics',
+      'Future Trends',
+      'Risk Assessment'
+    ];
+    return concepts[index % concepts.length];
+  };
+  
+  const generateSectionTitle = (topic: string, index: number): string => {
+    const titles = [
+      `Advanced ${topic} Techniques`,
+      `${topic} Implementation Guide`,
+      `Measuring ${topic} Success`,
+      `${topic} Best Practices`,
+      `Future of ${topic}`
+    ];
+    return titles[index % titles.length];
+  };
+  
+  const generateSpeakerNotes = (title: string, content: string, tone: string): string => {
+    const notes = {
+      formal: `Good morning/afternoon. Today I'll be presenting on ${title}. The key points to emphasize are...`,
+      persuasive: `Let me start by asking you to consider... The evidence clearly shows that...`,
+      educational: `The learning objectives for this section include... Students should focus on...`,
+      inspirational: `Imagine a world where... This is not just a possibility, but a reality we can create together.`,
+      conversational: `So, let's talk about ${title}. What's really interesting here is...`
+    };
+    
+    return notes[tone as keyof typeof notes] + `\n\nKey talking points:\n- ${content.substring(0, 100)}...\n- Additional context and examples\n- Q&A preparation points`;
+  };
+  
+  const extractKeywords = (content: string): string[] => {
+    const words = content.toLowerCase().split(' ');
+    const commonWords = ['the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'with', 'by', 'is', 'are', 'was', 'were', 'be', 'been', 'have', 'has', 'had', 'do', 'does', 'did', 'will', 'would', 'could', 'should', 'may', 'might', 'can', 'this', 'that', 'these', 'those', 'i', 'you', 'he', 'she', 'it', 'we', 'they'];
+    
+    return words
+      .filter(word => word.length > 3 && !commonWords.includes(word))
+      .slice(0, 5);
   };
 
   return (

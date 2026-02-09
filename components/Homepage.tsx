@@ -100,7 +100,7 @@ const Homepage: React.FC<HomepageProps> = ({ onNavigate }) => {
                 <button
                   key={feature.id}
                   onClick={() => onNavigate(feature.id as NavView)}
-                  className="group bg-white rounded-3xl p-6 shadow-sm hover:shadow-xl border border-gray-200 transition-all duration-300 text-left relative overflow-hidden"
+                  className="group bg-white rounded-[24px] p-6 shadow-sm hover:shadow-xl border border-gray-200 transition-all duration-300 text-left relative overflow-hidden"
                 >
                   {/* Decorative Blob */}
                   <div className={`absolute top-0 right-0 w-24 h-24 bg-gradient-to-br ${feature.color} opacity-10 rounded-full blur-xl transition-opacity group-hover:opacity-20`}></div>

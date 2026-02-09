@@ -84,10 +84,10 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, onNavigate }) => {
                 }`}
               >
                 <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
-                  isActive 
-                    ? 'bg-blue-600 text-white' 
-                    : 'bg-gray-100 text-gray-600'
-                }`}>
+                isActive 
+                  ? 'bg-blue-600 text-white' 
+                  : 'bg-gray-100 text-gray-600'
+              }`}>
                   <Icon className="w-4 h-4" />
                 </div>
                 <span className="font-medium">{item.label}</span>

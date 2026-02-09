@@ -268,16 +268,6 @@ export const generatePresentationContent = async (
     data.slides = slidesWithImages;
     
     return data;
-
-  } catch (error) {
-    console.error("❌ Error generating presentation:", error);
-    console.error("🔍 Error details:", {
-      message: error.message,
-      status: error.status,
-      statusText: error.statusText,
-      stack: error.stack
-    });
-    throw error;
   }
 };
 

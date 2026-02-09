@@ -32,7 +32,7 @@ const replicateConfig = {
 // ElevenLabs Configuration
 const elevenlabsConfig = {
   apiKey: process.env.ELEVENLABS_API_KEY,
-  baseURL: "https://api.elevenlabs.io/v1"
+  baseURL: "https://api.elevenlabs.com/v1"
 };
 
 // DeepSeek Configuration
@@ -51,19 +51,22 @@ export const generateMultiAIPresentation = async (
 ): Promise<PresentationData> => {
   
   try {
-    console.log(`🚀 Generating presentation with ${preferredProvider} AI`);
+    console.log(`🚀 Generating presentation with ${preferredProvider} AI provider`);
     
     // Select best provider based on task complexity
-    let provider = preferredProvider;
+    let selectedProvider = preferredProvider;
     if (preferredProvider === 'auto') {
-      if (config.length > 15) provider = 'anthropic'; // Complex presentations
-      else if (config.audience.includes('technical')) provider = 'openai'; // Technical content
-      else if (config.imageStyle === 'Photorealistic') provider = 'stability'; // High-quality images
-      else if (config.imageStyle === 'Cartoon') provider = 'openai'; // Creative content
-      else provider = 'gemini'; // Default
+      if (config.length > 15) selectedProvider = 'anthropic'; // Complex presentations
+      else if (config.audience.includes('technical')) selectedProvider = 'openai'; // Technical content
+      else if (config.imageStyle === 'Photorealistic') selectedProvider = 'stability'; // High-quality images
+      else if (config.imageStyle === 'Cartoon') selectedProvider = 'openai'; // Creative content
+      else if (config.imageStyle === '3D Render') selectedProvider = 'replicate'; // 3D renders
+      else selectedProvider = 'gemini'; // Default
     }
     
-    switch (provider) {
+    console.log(`🎯 Selected provider: ${selectedProvider}`);
+    
+    switch (selectedProvider) {
       case 'openai':
         return await generateOpenAIPresentation(config);
       case 'anthropic':
@@ -76,18 +79,19 @@ export const generateMultiAIPresentation = async (
         return await generateElevenlabsPresentation(config);
       case 'deepseek':
         return await generateDeepSeekPresentation(config);
+      case 'gemini':
+        return await generateGeminiPresentation(config);
       default:
         return await generateGeminiPresentation(config);
     }
     
   } catch (error) {
     console.error("❌ Multi-AI presentation generation failed:", error);
-    // Fallback to Gemini
-    return await generateGeminiPresentation(config);
+    throw error;
   }
 };
 
-// OpenAI Presentation Generation
+// Individual Provider Functions
 const generateOpenAIPresentation = async (config: PresentationConfig): Promise<PresentationData> => {
   const response = await fetch(`${openaiConfig.baseURL}/chat/completions`, {
     method: 'POST',
@@ -100,29 +104,26 @@ const generateOpenAIPresentation = async (config: PresentationConfig): Promise<P
       messages: [
         {
           role: "system",
-          content: `You are an expert presentation designer working for NovagenAI. Create highly visual, detailed, and professional presentations with NOVAGENAI branding. Include charts, maps, and infographics. Every slide must have a visual element.`
+          content: `You are an expert presentation designer working for NovagenAI. Create comprehensive, detailed presentations with publication-ready content. Include charts, maps, and infographics. Use NOVAGENAI branding. Format as JSON.`
         },
         {
           role: "user",
-          content: `Create a ${config.length}-slide presentation about: "${config.topic}". Target Audience: ${config.audience}. Tone: ${config.tone}. Design Style: ${config.theme}. Image Style: ${config.imageStyle}. Include at least 3 different chart types, maps, and infographics. Return as JSON.`
+          content: `Create a ${config.length}-slide presentation about: "${config.topic}". Target Audience: ${config.audience}. Tone: ${config.tone}. Design Style: ${config.theme}. Image Style: ${config.imageStyle}.`
         }
-      ],
-      response_format: { type: "json_object" },
-      temperature: 0.7
+      ]
     })
   });
-
+  
   const data = await response.json();
-  return formatPresentationData(data.choices[0].message.content, config);
+  return formatPresentationData(data, config);
 };
 
-// Anthropic Presentation Generation
 const generateAnthropicPresentation = async (config: PresentationConfig): Promise<PresentationData> => {
   const response = await fetch(`${anthropicConfig.baseURL}/messages`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'Authorization': `Bearer ${anthropicConfig.apiKey}`,
+      'x-api-key': anthropicConfig.apiKey,
       'anthropic-version': '2023-06-01'
     },
     body: JSON.stringify({
@@ -131,19 +132,18 @@ const generateAnthropicPresentation = async (config: PresentationConfig): Promis
       messages: [
         {
           role: "user",
-          content: `Create a ${config.length}-slide presentation about: "${config.topic}". Target Audience: ${config.audience}. Tone: ${config.tone}. Design Style: ${config.theme}. Image Style: ${config.imageStyle}. Include charts, maps, and infographics. Every slide must have a visual element. Return as JSON.`
+          content: `Create a ${config.length}-slide presentation about: "${config.topic}". Target Audience: ${config.audience}. Tone: ${config.tone}. Design Style: ${config.theme}. Image Style: ${config.imageStyle}.`
         }
       ]
     })
   });
-
+  
   const data = await response.json();
-  return formatPresentationData(data.content[0].text, config);
+  return formatPresentationData(data, config);
 };
 
-// Stability AI Presentation Generation
 const generateStabilityPresentation = async (config: PresentationConfig): Promise<PresentationData> => {
-  const response = await fetch(`${stabilityConfig.baseURL}/generation/stable-diffusion-xl-1024-v1-0`, {
+  const response = await fetch(`${stabilityConfig.baseURL}/text-to-image`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -153,33 +153,43 @@ const generateStabilityPresentation = async (config: PresentationConfig): Promis
     body: JSON.stringify({
       text_prompts: [
         {
-          text: `Professional presentation about ${config.topic}, ${config.audience} audience, ${config.tone} tone, ${config.theme} style, ${config.imageStyle} images. Include charts and data visualizations.`
+          text: `Professional presentation slide about ${config.topic}, ${config.imageStyle} style, high quality, detailed content`
         }
       ],
-      cfg_scale: 7,
-      height: 1024,
+      model: "stable-diffusion-xl",
       width: 1024,
-      samples: 1,
-      steps: 30
+      height: 1024
     })
   });
-
+  
   const result = await response.json();
-  // Convert image to presentation data structure
+  
+  // Convert image to presentation data
+  const slides = [{
+    id: 'slide-1',
+    title: config.topic,
+    content: [`Generated with Stability AI (${config.imageStyle} style)`],
+    speakerNotes: `Professional presentation generated using Stability AI`,
+    imagePrompt: `Professional ${config.imageStyle} style image of ${config.topic}`,
+    imageUrl: result.artifacts[0]?.base64 || ''
+  }];
+  
   return {
     title: config.topic,
     subtitle: `Generated with Stability AI`,
-    slides: [{
-      id: 'slide-1',
-      title: config.topic,
-      content: [`Generated with Stability AI for ${config.audience}`],
-      imagePrompt: `Professional ${config.imageStyle} style image of ${config.topic}`,
-      imageUrl: `data:image/png;base64,${result.artifacts[0].base64}`
-    }]
-  } as PresentationData;
+    theme: config.theme,
+    aspectRatio: config.aspectRatio,
+    imageStyle: config.imageStyle,
+    enableAnimations: config.enableAnimations,
+    branding: {
+      company: "NOVAGENAI",
+      logo: "N",
+      tagline: "AI-Powered Presentations"
+    },
+    slides
+  };
 };
 
-// Replicate Presentation Generation
 const generateReplicatePresentation = async (config: PresentationConfig): Promise<PresentationData> => {
   const response = await fetch(`${replicateConfig.baseURL}/predictions`, {
     method: 'POST',
@@ -190,57 +200,80 @@ const generateReplicatePresentation = async (config: PresentationConfig): Promis
     body: JSON.stringify({
       version: "stability-ai/stable-diffusion-3",
       input: {
-        prompt: `Professional presentation about ${config.topic}, ${config.audience} audience, ${config.tone} tone`,
+        prompt: `Professional presentation about ${config.topic}, ${config.imageStyle} style`,
         width: 1024,
         height: 1024,
         num_outputs: 1
       }
     })
   });
-
+  
   const result = await response.json();
+  
+  const slides = [{
+    id: 'slide-1',
+    title: config.topic,
+    content: [`Generated with Replicate (${config.imageStyle} style)`],
+    speakerNotes: `Professional presentation generated using Replicate`,
+    imagePrompt: `Professional ${config.imageStyle} style image of ${config.topic}`,
+    imageUrl: result.output?.[0] || ''
+  }];
+  
   return {
     title: config.topic,
     subtitle: `Generated with Replicate`,
-    slides: [{
-      id: 'slide-1',
-      title: config.topic,
-      content: [`Generated with Replicate for ${config.audience}`],
-      imagePrompt: `Professional ${config.imageStyle} style image of ${config.topic}`,
-      imageUrl: result.output[0]
-    }]
-  } as PresentationData;
+    theme: config.theme,
+    aspectRatio: config.aspectRatio,
+    imageStyle: config.imageStyle,
+    enableAnimations: config.enableAnimations,
+    branding: {
+      company: "NOVAGENAI",
+      logo: "N",
+      tagline: "AI-Powered Presentations"
+    },
+    slides
+  };
 };
 
-// ElevenLabs Presentation Generation
 const generateElevenlabsPresentation = async (config: PresentationConfig): Promise<PresentationData> => {
   const response = await fetch(`${elevenlabsConfig.baseURL}/text-to-speech`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'Authorization': `Bearer ${elevenlabsConfig.apiKey}`
+      'xi-api-key': elevenlabsConfig.apiKey
     },
     body: JSON.stringify({
-      text: `Create presentation content about ${config.topic} for ${config.audience}`,
-      voice_id: "rachel",
-      model_id: "eleven_multilingual_v2"
+      content: `Create a ${config.length}-slide presentation about: "${config.topic}". Target Audience: ${config.audience}. Tone: ${config.tone}. Design Style: ${config.theme}. Image Style: ${config.imageStyle}. Include charts, maps, and infographics. Use NOVAGENAI branding. Format as JSON.`
     })
   });
-
-  const result = await response.json();
+  
+  const data = await response.json();
+  
+  const slides = [{
+    id: 'slide-1',
+    title: config.topic,
+    content: [`Generated with ElevenLabs (${config.imageStyle} style)`],
+    speakerNotes: `Professional presentation generated using ElevenLabs`,
+    imagePrompt: `Professional ${config.imageStyle} style image of ${config.topic}`,
+    imageUrl: '' // ElevenLabs is text-to-speech, not image generation
+  }];
+  
   return {
     title: config.topic,
     subtitle: `Generated with ElevenLabs`,
-    slides: [{
-      id: 'slide-1',
-      title: config.topic,
-      content: [result.text],
-      speakerNotes: `Voice narration available: ${result.text.substring(0, 100)}...`
-    }]
-  } as PresentationData;
+    theme: config.theme,
+    aspectRatio: config.aspectRatio,
+    imageStyle: config.imageStyle,
+    enableAnimations: config.enableAnimations,
+    branding: {
+      company: "NOVAGENAI",
+      logo: "N",
+      tagline: "AI-Powered Presentations"
+    },
+    slides
+  };
 };
 
-// DeepSeek Presentation Generation
 const generateDeepSeekPresentation = async (config: PresentationConfig): Promise<PresentationData> => {
   const response = await fetch(`${deepseekConfig.baseURL}/chat/completions`, {
     method: 'POST',
@@ -253,179 +286,56 @@ const generateDeepSeekPresentation = async (config: PresentationConfig): Promise
       messages: [
         {
           role: "system",
-          content: "You are an expert presentation designer for NovagenAI. Create detailed, professional presentations with charts and visuals."
+          content: "You are an expert presentation designer working for NovagenAI. Create comprehensive, detailed presentations with publication-ready content. Include charts, maps, and infographics. Use NOVAGENAI branding. Format as JSON."
         },
         {
           role: "user",
-          content: `Create a ${config.length}-slide presentation about: "${config.topic}". Target Audience: ${config.audience}. Tone: ${config.tone}. Design Style: ${config.theme}. Image Style: ${config.imageStyle}. Include charts and data visualizations. Return as JSON.`
+          content: `Create a ${config.length}-slide presentation about: "${config.topic}". Target Audience: ${config.audience}. Tone: ${config.tone}. Design Style: ${config.theme}. Image Style: ${config.imageStyle}.`
         }
-      ],
-      response_format: { type: "json_object" },
-      temperature: 0.7
+      ]
     })
   });
-
+  
   const data = await response.json();
-  return formatPresentationData(data.choices[0].message.content, config);
-};
-
-// Gemini Presentation Generation (Enhanced)
-const generateGeminiPresentation = async (config: PresentationConfig): Promise<PresentationData> => {
-  const modelId = 'gemini-2.5-flash';
-  
-  const prompt = `
-    Create a comprehensive ${config.length}-slide presentation about: "${config.topic}".
-    Target Audience: ${config.audience}.
-    Tone: ${config.tone}.
-    Design Style: ${config.theme}.
-    Image Style: ${config.imageStyle}.
-    
-    CRITICAL REQUIREMENTS:
-    1. VISUAL EXCELLENCE:
-       - EVERY slide MUST have a high-quality, content-relevant image
-       - Include at least 3 different chart types: bar, pie, line, area
-       - Add maps if geographic data is relevant
-       - Include infographics for processes and timelines
-       - All visuals must be publication-ready
-    
-    2. CONTENT DEPTH:
-       - Provide expert-level information with specific data points
-       - Include realistic statistics and facts
-       - Add comprehensive speaker notes with talking points
-       - Ensure logical flow with smooth transitions
-    
-    3. NOVAGENAI BRANDING:
-       - Use "NOVAGENAI" as the exclusive brand name
-       - White label design with professional appearance
-       - No third-party branding or references
-    
-    4. QUALITY STANDARDS:
-       - Every slide must be visually rich and informative
-       - Include engagement questions in speaker notes
-       - Add transition suggestions between slides
-       - Ensure all graphics are content-relevant
-  `;
-  
-  const response = await gemini.models.generateContent({
-    model: modelId,
-    contents: { parts: [{ text: prompt }] },
-    config: {
-      systemInstruction: "You are an expert presentation designer and data analyst working for NovagenAI. Create highly visual, detailed, and professional presentations.",
-      responseMimeType: "application/json",
-      responseSchema: {
-        type: Type.OBJECT,
-        properties: {
-          title: { type: Type.STRING },
-          subtitle: { type: Type.STRING },
-          slides: {
-            type: Type.ARRAY,
-            items: {
-              type: Type.OBJECT,
-              properties: {
-                id: { type: Type.STRING },
-                title: { type: Type.STRING },
-                content: { type: Type.ARRAY, items: { type: Type.STRING } },
-                speakerNotes: { type: Type.STRING },
-                imagePrompt: { type: Type.STRING },
-                transition: { type: Type.STRING },
-                chart: {
-                  type: Type.OBJECT,
-                  properties: {
-                    type: { type: Type.STRING, enum: ["bar", "pie", "line", "area", "scatter"] },
-                    title: { type: Type.STRING },
-                    labels: { type: Type.ARRAY, items: { type: Type.STRING } },
-                    values: { type: Type.ARRAY, items: { type: Type.NUMBER } }
-                  }
-                },
-                map: {
-                  type: Type.OBJECT,
-                  properties: {
-                    type: { type: Type.STRING, enum: ["world", "country", "region", "city"] },
-                    title: { type: Type.STRING },
-                    locations: { type: Type.ARRAY, items: { type: Type.STRING } },
-                    values: { type: Type.ARRAY, items: { type: Type.NUMBER } }
-                  }
-                },
-                infographic: {
-                  type: Type.OBJECT,
-                  properties: {
-                    type: { type: Type.STRING, enum: ["timeline", "process", "comparison", "statistics"] },
-                    title: { type: Type.STRING },
-                    steps: { type: Type.ARRAY, items: { type: Type.STRING } }
-                  }
-                }
-              },
-              required: ["id", "title", "content", "speakerNotes", "imagePrompt"]
-            }
-          }
-        },
-        required: ["title", "slides"]
-      }
-    }
-  });
-
-  const data = JSON.parse(response.text);
   return formatPresentationData(data, config);
 };
 
-// Helper function to format presentation data
-const formatPresentationData = (data: any, config: PresentationConfig): PresentationData => {
-  return {
-    title: data.title || config.topic,
-    subtitle: data.subtitle || `Generated with NovagenAI`,
-    theme: config.theme,
-    aspectRatio: config.aspectRatio,
-    imageStyle: config.imageStyle,
-    enableAnimations: config.enableAnimations,
-    branding: {
-      company: "NOVAGENAI",
-      logo: "N",
-      tagline: "AI-Powered Presentations"
-    },
-    slides: (data.slides || []).map((s: any, i: number) => ({
-      ...s,
-      id: s.id || `slide-${i}`,
-      speakerNotes: s.speakerNotes || `Detailed talking points for slide ${i + 1}. Include engagement questions and data insights.`,
-      imagePrompt: s.imagePrompt || `Professional ${config.imageStyle} style image related to ${s.title}`,
-      transition: s.transition || "fade",
-      imageUrl: s.imageUrl || ""
-    }))
-  };
-};
-
-// Enhanced Image Generation with Multiple Providers
+// Enhanced Image Generation with Multi-AI Support
 export const generateMultiAIImage = async (
-  prompt: string, 
+  prompt: string,
   aspectRatio: string = "1:1",
-  provider: AIProvider = 'auto',
-  quality: 'standard' | 'hd' = 'hd'
+  provider: AIProvider = 'auto'
 ): Promise<string> => {
   
   try {
-    console.log(`🎨 Generating ${quality} image with ${provider} AI`);
+    console.log(`🎨 Generating image with ${provider} AI provider`);
     
     // Select best provider for image generation
     let selectedProvider = provider;
     if (provider === 'auto') {
-      if (quality === 'hd') selectedProvider = 'stability'; // Best for HD
-      else if (prompt.includes('photorealistic')) selectedProvider = 'openai'; // Best for realistic
-      else if (prompt.includes('cartoon')) selectedProvider = 'openai'; // Best for creative
+      if (prompt.includes('photorealistic')) selectedProvider = 'stability'; // Best for realistic images
+      else if (prompt.includes('cartoon')) selectedProvider = 'openai'; // Best for creative content
+      else if (prompt.includes('3d')) selectedProvider = 'replicate'; // Best for 3D renders
       else selectedProvider = 'gemini'; // Default
     }
     
+    console.log(`🎯 Selected provider: ${selectedProvider}`);
+    
     switch (selectedProvider) {
       case 'openai':
-        return await generateOpenAIImage(prompt, aspectRatio, quality);
+        return await generateOpenAIImage(prompt, aspectRatio);
       case 'stability':
-        return await generateStabilityImage(prompt, aspectRatio, quality);
+        return await generateStabilityImage(prompt, aspectRatio);
       case 'replicate':
-        return await generateReplicateImage(prompt, aspectRatio, quality);
+        return await generateReplicateImage(prompt, aspectRatio);
       case 'elevenlabs':
-        return await generateElevenlabsImage(prompt);
+        return await generateElevenlabsImage(prompt, aspectRatio);
       case 'deepseek':
         return await generateDeepSeekImage(prompt, aspectRatio);
+      case 'gemini':
+        return await generateGeminiImage(prompt, aspectRatio);
       default:
-        return await generateGeminiImage(prompt, aspectRatio, quality);
+        return await generateGeminiImage(prompt, aspectRatio);
     }
     
   } catch (error) {
@@ -434,10 +344,8 @@ export const generateMultiAIImage = async (
   }
 };
 
-// OpenAI Image Generation (DALL-E 3)
-const generateOpenAIImage = async (prompt: string, aspectRatio: string, quality: string): Promise<string> => {
-  const size = quality === 'hd' ? '1024x1024' : '512x512';
-  
+// Individual Provider Image Generation Functions
+const generateOpenAIImage = async (prompt: string, aspectRatio: string): Promise<string> => {
   const response = await fetch(`${openaiConfig.baseURL}/images/generations`, {
     method: 'POST',
     headers: {
@@ -447,21 +355,18 @@ const generateOpenAIImage = async (prompt: string, aspectRatio: string, quality:
     body: JSON.stringify({
       model: "dall-e-3",
       prompt: prompt,
-      size: size,
-      quality: quality === 'hd' ? 'hd' : 'standard',
+      size: aspectRatio === '16:9' ? '1792x1024' : '1024x1024',
+      quality: 'hd',
       n: 1
     })
   });
-
+  
   const result = await response.json();
-  return result.data[0].url;
+  return result.data[0]?.url || '';
 };
 
-// Stability AI Image Generation
-const generateStabilityImage = async (prompt: string, aspectRatio: string, quality: string): Promise<string> => {
-  const [width, height] = aspectRatio === '16:9' ? [1024, 576] : [1024, 1024];
-  
-  const response = await fetch(`${stabilityConfig.baseURL}/generation/stable-diffusion-xl-1024-v1-0`, {
+const generateStabilityImage = async (prompt: string, aspectRatio: string): Promise<string> => {
+  const response = await fetch(`${stabilityConfig.baseURL}/text-to-image`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -469,23 +374,23 @@ const generateStabilityImage = async (prompt: string, aspectRatio: string, quali
       'Accept': 'application/json'
     },
     body: JSON.stringify({
-      text_prompts: [{ text: prompt }],
-      cfg_scale: quality === 'hd' ? 9 : 7,
-      height: height,
-      width: width,
-      samples: 1,
-      steps: quality === 'hd' ? 50 : 30
+      text_prompts: [
+        {
+          text: prompt
+        }
+      ],
+      model: "stable-diffusion-xl",
+      width: aspectRatio === '16:9' ? 1792 : 1024,
+      height: aspectRatio === '16:9' ? 1008 : 1024,
+      output_format: 'png'
     })
   });
-
+  
   const result = await response.json();
-  return `data:image/png;base64,${result.artifacts[0].base64}`;
+  return result.artifacts[0]?.base64 || '';
 };
 
-// Replicate Image Generation
-const generateReplicateImage = async (prompt: string, aspectRatio: string, quality: string): Promise<string> => {
-  const [width, height] = aspectRatio === '16:9' ? [1024, 576] : [1024, 1024];
-  
+const generateReplicateImage = async (prompt: string, aspectRatio: string): Promise<string> => {
   const response = await fetch(`${replicateConfig.baseURL}/predictions`, {
     method: 'POST',
     headers: {
@@ -496,40 +401,34 @@ const generateReplicateImage = async (prompt: string, aspectRatio: string, quali
       version: "stability-ai/stable-diffusion-3",
       input: {
         prompt: prompt,
-        width: width,
-        height: height,
-        num_outputs: 1,
-        guidance_scale: quality === 'hd' ? 9 : 7
+        width: aspectRatio === '16:9' ? 1792 : 1024,
+        height: aspectRatio === '16:9' ? 1008 : 1024,
+        num_outputs: 1
       }
     })
   });
-
+  
   const result = await response.json();
-  return result.output[0];
+  return result.output?.[0] || '';
 };
 
-// ElevenLabs Image Generation (Text to Image - not ideal but available)
-const generateElevenlabsImage = async (prompt: string): Promise<string> => {
+const generateElevenlabsImage = async (prompt: string, aspectRatio: string): Promise<string> => {
   const response = await fetch(`${elevenlabsConfig.baseURL}/text-to-speech`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'Authorization': `Bearer ${elevenlabsConfig.apiKey}`
+      'xi-api-key': elevenlabsConfig.apiKey
     },
     body: JSON.stringify({
-      text: prompt,
-      voice_id: "rachel",
-      model_id: "eleven_multilingual_v2"
+      text: prompt
     })
   });
-
-  const result = await response.json();
-  // This would return audio, not image - placeholder
-  return `data:image/svg+xml,${encodeURIComponent(`<svg><text>${prompt}</text></svg>`)}`;
+  
+  const data = await response.json();
+  return data.audio_url || '';
 };
 
-// DeepSeek Image Generation
-const generateDeepSeekImage = async (prompt: string, aspectRatio: string, quality: string): Promise<string> => {
+const generateDeepSeekImage = async (prompt: string, aspectRatio: string): Promise<string> => {
   const response = await fetch(`${deepseekConfig.baseURL}/chat/completions`, {
     method: 'POST',
     headers: {
@@ -540,50 +439,45 @@ const generateDeepSeekImage = async (prompt: string, aspectRatio: string, qualit
       model: "deepseek-chat",
       messages: [
         {
+          role: "system",
+          content: "You are an expert image generator. Create high-quality, detailed images based on the given prompt."
+        },
+        {
           role: "user",
-          content: `Generate a detailed image description for: ${prompt}. Return as a detailed prompt for image generation.`
+          content: `Generate a high-quality image: ${prompt}. ${aspectRatio} aspect ratio. Professional lighting, sharp details, ${aspectRatio === '1:1' ? 'square format' : 'wide format'}.`
         }
       ]
     })
   });
-
+  
   const data = await response.json();
-  // Use the enhanced prompt with Gemini for actual image generation
-  return await generateGeminiImage(data.choices[0].message.content, aspectRatio);
+  return data.choices[0]?.message?.content || '';
 };
 
-// Gemini Image Generation (Enhanced)
 const generateGeminiImage = async (prompt: string, aspectRatio: string): Promise<string> => {
-  const modelId = 'gemini-2.5-flash';
-  
   const response = await gemini.models.generateContent({
-    model: modelId,
-    contents: { 
-      parts: [{ 
-        text: `Generate a high-quality ${aspectRatio} image: ${prompt}. Professional lighting, sharp details, rich colors. ${aspectRatio === '1:1' ? 'Square format.' : 'Wide format.'}` 
-      }] 
-    },
+    model: 'gemini-2.5-flash',
+    contents: { parts: [{ text: `Generate a high-quality image: ${prompt}. ${aspectRatio} aspect ratio. Professional lighting, sharp details, ${aspectRatio === '1:1' ? 'square format' : 'wide format'}.` }] },
     config: {
       responseMimeType: "application/json"
     }
   });
-
+  
   const text = response.text;
   if (!text) {
     throw new Error("No response from Gemini");
   }
-
-  // Parse the response for image data
-  const data = JSON.parse(text);
-  if (data.candidates && data.candidates[0] && data.candidates[0].content) {
-    const imageData = data.candidates[0].content.parts.find((part: any) => part.inlineData);
-    return imageData ? imageData.data : '';
+  
+  // Try to extract image data
+  const imageMatch = text.match(/data:image\/[^;]+;base64,([^"]+)/);
+  if (imageMatch) {
+    return imageMatch[1];
   }
   
-  throw new Error("No image data in response");
+  throw new Error("Gemini image generation failed");
 };
 
-// 4K Logo Generation with Multiple Providers
+// 4K Logo Generation with Multi-AI Support
 export const generate4KLogo = async (
   companyName: string,
   industry: string,
@@ -592,44 +486,30 @@ export const generate4KLogo = async (
 ): Promise<string> => {
   
   try {
-    console.log(`🏢 Generating 4K logo with ${provider} AI`);
+    console.log(`🏢 Generating 4K logo with ${provider} AI provider`);
     
     // Select best provider for logo generation
     let selectedProvider = provider;
     if (provider === 'auto') {
-      if (style === 'minimalist') selectedProvider = 'openai'; // Best for clean logos
-      else if (style === 'bold') selectedProvider = 'stability'; // Best for impactful logos
+      if (style === 'minimalist') selectedProvider = 'openai'; // Clean designs
+      else if (style === 'bold') selectedProvider = 'stability'; // Impactful logos
+      else if (style === 'elegant') selectedProvider = 'anthropic'; // Sophisticated logos
       else selectedProvider = 'gemini'; // Default
     }
     
-    const logoPrompt = `
-      Create a professional 4K ultra-high resolution logo for "${companyName}" in the ${industry} industry.
-      Style: ${style}.
-      Requirements:
-      - Ultra HD 4K resolution (4096x4096)
-      - Vector quality, scalable
-      - Clean, professional design
-      - White or transparent background
-      - Modern, memorable design
-      - No text, just the logo icon/symbol
-      - ${style === 'minimalist' ? 'Minimalist approach, negative space' : ''}
-      - ${style === 'bold' ? 'Bold, impactful design' : ''}
-      - ${style === 'elegant' ? 'Elegant, sophisticated design' : ''}
-      - ${style === 'modern' ? 'Modern, cutting-edge design' : ''}
-      - ${style === 'classic' ? 'Timeless, classic design' : ''}
-    `;
+    console.log(`🎯 Selected provider: ${selectedProvider}`);
     
     switch (selectedProvider) {
       case 'openai':
-        return await generateOpenAIImage(logoPrompt, '1:1', 'hd');
+        return await generateOpenAI4KLogo(companyName, industry, style);
       case 'stability':
-        return await generateStabilityImage(logoPrompt, '1:1', 'hd');
-      case 'replicate':
-        return await generateReplicateImage(logoPrompt, '1:1', 'hd');
-      case 'deepseek':
-        return await generateDeepSeekImage(logoPrompt, '1:1', 'hd');
+        return await generateStability4KLogo(companyName, industry, style);
+      case 'anthropic':
+        return await generateAnthropic4KLogo(companyName, industry, style);
+      case 'gemini':
+        return await generateGemini4KLogo(companyName, industry, style);
       default:
-        return await generateGeminiImage(logoPrompt, '1:1');
+        return await generateGemini4KLogo(companyName, industry, style);
     }
     
   } catch (error) {
@@ -638,15 +518,121 @@ export const generate4KLogo = async (
   }
 };
 
-// Export all functions
-export {
-  generateMultiAIPresentation,
-  generateMultiAIImage,
-  generate4KLogo,
-  generateOpenAIImage,
-  generateStabilityImage,
-  generateReplicateImage,
-  generateElevenlabsImage,
-  generateDeepSeekImage,
-  generateGeminiImage
+// Individual Provider 4K Logo Generation Functions
+const generateOpenAI4KLogo = async (companyName: string, industry: string, style: string): Promise<string> => {
+  const response = await fetch(`${openaiConfig.baseURL}/images/generations`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${openaiConfig.apiKey}`
+    },
+    body: JSON.stringify({
+      model: "dall-e-3",
+      prompt: `Create a professional 4K ultra-high resolution logo for "${companyName}" in the ${industry} industry. Style: ${style}. Minimalist design, clean lines, white background, vector quality. Professional, modern, suitable for business branding. Ultra HD 4096x4096 resolution.`,
+      size: "1792x1792",
+      quality: "hd",
+      n: 1
+    })
+  });
+  
+  const result = await response.json();
+  return result.data[0]?.url || '';
+};
+
+const generateStability4KLogo = async (companyName: string, industry: string, style: string): Promise<string> => {
+  const response = await fetch(`${stabilityConfig.baseURL}/text-to-image`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${stabilityConfig.apiKey}`,
+      'Accept': 'application/json'
+    },
+    body: JSON.stringify({
+      text_prompts: [
+        {
+          text: `Create a professional 4K ultra-high resolution logo for "${companyName}" in the ${industry} industry. Style: ${style}. Bold, impactful design, high contrast, professional. Ultra HD 4096x4096 resolution.`
+        }
+      ],
+      model: "stable-diffusion-xl",
+      width: 2048,
+      height: 2048,
+      output_format: 'png'
+    })
+  });
+  
+  const result = await response.json();
+  return result.artifacts[0]?.base64 || '';
+};
+
+const generateAnthropic4KLogo = async (companyName: string, industry: string, style: string): Promise<string> => {
+  const response = await fetch(`${anthropicConfig.baseURL}/messages`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': anthropicConfig.apiKey,
+      'anthropic-version': '2023-06-01'
+    },
+    body: JSON.stringify({
+      model: "claude-3-5-sonnet-20241022",
+      max_tokens: 4000,
+      messages: [
+        {
+          role: "user",
+          content: `Create a professional 4K ultra-high resolution logo for "${companyName}" in the ${industry} industry. Style: ${style}. Elegant, sophisticated design, premium quality. Ultra HD 4096x4096 resolution.`
+        }
+      ]
+    })
+  });
+  
+  const data = await response.json();
+  return data.content[0]?.text || '';
+};
+
+const generateGemini4KLogo = async (companyName: string, industry: string, style: string): Promise<string> => {
+  const response = await gemini.models.generateContent({
+    model: 'gemini-2.5-flash',
+    contents: { parts: [{ text: `Generate a professional 4K ultra-high resolution logo for "${companyName}" in the ${industry} industry. Style: ${style}. Modern, clean design, professional appearance. Ultra HD 4096x4096 resolution.` }] },
+    config: {
+      responseMimeType: "application/json"
+    }
+  });
+  
+  const text = response.text;
+  if (!text) {
+    throw new Error("No response from Gemini");
+  }
+  
+  // Try to extract image data
+  const imageMatch = text.match(/data:image\/[^;]+;base64,([^"]+)/);
+  if (imageMatch) {
+    return imageMatch[1];
+  }
+  
+  throw new Error("Gemini 4K logo generation failed");
+};
+
+// Helper function to format presentation data
+const formatPresentationData = (data: any, config: PresentationConfig): PresentationData => {
+  return {
+    title: data.title || config.topic,
+    subtitle: data.subtitle || `Generated with ${selectedProvider} AI`,
+    theme: config.theme,
+    aspectRatio: config.aspectRatio,
+    imageStyle: config.imageStyle,
+    enableAnimations: config.enableAnimations,
+    branding: {
+      company: "NOVAGENAI",
+      logo: "N",
+      tagline: "AI-Powered Presentations"
+    },
+    slides: (data.slides || []).map((slide: any, index: number) => ({
+      id: slide.id || `slide-${index + 1}`,
+      title: slide.title || `Slide ${index + 1}`,
+      content: slide.content || ['Content'],
+      speakerNotes: slide.speakerNotes || `Speaker notes for slide ${index + 1}`,
+      imagePrompt: slide.imagePrompt || `Professional ${config.imageStyle} style image of ${slide.title}`,
+      transition: slide.transition || "fade",
+      imageUrl: slide.imageUrl || ''
+    }))
+  };
 };

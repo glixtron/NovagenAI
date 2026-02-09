@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Wand2Icon, DownloadIcon, SparklesIcon, RefreshCcwIcon } from './Icons';
 import { generate4KLogo } from '../services/multiAIService';
+import { generate4KLogo } from '../services/multiAIService';
 
 interface LogoDesignerProps {
   onBack: () => void;

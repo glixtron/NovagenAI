@@ -1,39 +1,14 @@
 {
   "version": 2,
   "builds": {
-    "outDir": "dist",
-    "rollupOptions": {
-      "output": {
-        "manualChunks": (id: string) => {
-          if (id.includes('multiAIService')) {
-              return {
-                entry: 'src/services/multiAIService.ts',
-                fileName: 'multiAIService.js',
-                name: 'Multi-AI Service'
-              };
-            }
-            if (id.includes('LogoDesigner')) {
-              return {
-                entry: 'src/components/LogoDesigner.tsx',
-                fileName: 'LogoDesigner.tsx',
-                name: 'Logo Designer'
-              };
-            }
-            return {
-              entry: 'src/services/geminiService.ts',
-              fileName: 'geminiService.js',
-              name: 'Gemini Service'
-            };
-            }
-          }
-        }
-      }
-    },
-    "headers": [
-      {
-        "source": "/(.*)",
-        "headers": [
-          {
+    "outDir": "dist"
+  },
+  "headers": [
+    {
+      "source": "/(.*)",
+      "destination": "/index.html",
+      "headers": [
+        {
           "key": "X-Content-Type-Options",
           "value": "nosniff"
         },
@@ -54,13 +29,13 @@
           "value": "max-age=63072000; includeSubDomains; preload"
         }
       ]
-    },
-    "rewrites": [
-      {
-        "source": "/(.*)",
-        "destination": "/index.html"
-      }
-    ]
-  },
+    }
+  ],
+  "rewrites": [
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
+  ],
   "framework": "react"
 }

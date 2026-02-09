@@ -105,7 +105,7 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, onNavigate }) => {
       )}
 
       <div className="space-y-1 pb-8 flex-1">
-        {navItems.map((item) => {
+        {navigation.map((item) => {
           const Icon = item.icon;
           const isActive = currentView === item.id;
           return (
@@ -118,8 +118,8 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, onNavigate }) => {
                   : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
               }`}
             >
-              <Icon className={`w-5 h-5 ${isActive ? 'text-blue-600' : 'text-slate-400'}`} />
-              <span className="text-sm">{item.label}</span>
+              <Icon className="w-5 h-5" />
+              <span className="font-medium">{item.label}</span>
             </button>
           );
         })}

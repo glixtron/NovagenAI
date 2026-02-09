@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { Wand2Icon, DownloadIcon, SparklesIcon, RefreshCcwIcon } from './Icons';
 import { generate4KLogo } from '../services/multiAIService';
-import { generate4KLogo } from '../services/multiAIService';
 
 interface LogoDesignerProps {
   onBack: () => void;
@@ -150,7 +149,7 @@ const LogoDesigner: React.FC<LogoDesignerProps> = ({ onBack }) => {
                           type="radio"
                           value={s.value}
                           checked={style === s.value}
-                          onChange={(e) => setStyle(e.target.value)}
+                          onChange={(e) => setStyle(e.target.value as 'modern' | 'classic' | 'minimalist' | 'bold' | 'elegant')}
                           className="mr-2"
                         />
                         <span className="text-sm">{s.label}</span>

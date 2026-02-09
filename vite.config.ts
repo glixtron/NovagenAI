@@ -4,6 +4,7 @@ import react from '@vitejs/plugin-react';
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, (process as any).cwd(), '');
   return {
+    base: './', // Fix for Vercel deployment - ensures proper CSS/JS paths
     plugins: [react()],
     define: {
       // securely map all API keys to build environment

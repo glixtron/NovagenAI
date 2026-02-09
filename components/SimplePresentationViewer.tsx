@@ -23,12 +23,15 @@ const SimplePresentationViewer: React.FC<SimplePresentationViewerProps> = ({ pre
   // Generate missing images on component mount - AUTOMATIC IMAGE GENERATION
   useEffect(() => {
     const generateMissingImages = async () => {
+      console.log('🚀 Starting automatic image generation for all slides...');
       for (const slide of presentation.slides) {
         if (!generatedImages[slide.id]) {
           // AUTOMATIC: Generate image immediately when slide text is available
+          console.log(`🎨 Auto-generating image for slide: ${slide.title}`);
           await generateSlideImage(slide.id);
         }
       }
+      console.log('✅ All images generated automatically');
     };
     
     // Auto-generate images for slides that don't have them - NO USER INTERACTION NEEDED

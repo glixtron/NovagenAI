@@ -5,8 +5,8 @@ import { getToken } from 'next-auth/jwt'
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
   
-  // Fix: Allow Next.js assets to pass through
-  if (pathname.startsWith('/_next') || pathname.includes('/static') || pathname.includes('favicon.ico')) {
+  // Fix: Allow API routes and Next.js assets to pass through
+  if (pathname.startsWith('/api') || pathname.startsWith('/_next') || pathname.includes('/static') || pathname.includes('favicon.ico')) {
     return NextResponse.next()
   }
   

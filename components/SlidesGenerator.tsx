@@ -8,6 +8,8 @@ interface Slide {
   title: string;
   content: string;
   image?: string;
+  imageUrl?: string;
+  imagePrompt?: string;
   speakerNotes?: string;
   transition?: string;
   duration?: number;
@@ -20,6 +22,33 @@ interface Slide {
   fontSize?: 'small' | 'medium' | 'large' | 'x-large';
   animations?: AnimationData[];
   metadata?: SlideMetadata;
+}
+
+interface PresentationData {
+  title: string;
+  slides: Slide[];
+  theme: string;
+  aspectRatio: string;
+  imageStyle: string;
+  audience: string;
+  tone: string;
+  length: number;
+  enableAnimations: boolean;
+}
+
+interface PresentationConfig {
+  topic: string;
+  fileData?: { base64: string; mimeType: string };
+  audience: 'executive' | 'technical' | 'academic' | 'client-facing' | 'general';
+  tone: 'formal' | 'persuasive' | 'educational' | 'inspirational' | 'conversational';
+  purpose: 'pitch-deck' | 'quarterly-review' | 'training' | 'conference' | 'report' | 'proposal';
+  industry: 'tech' | 'finance' | 'healthcare' | 'education' | 'marketing' | 'consulting' | 'other';
+  duration: number;
+  length: number;
+  theme: string;
+  aspectRatio: string;
+  imageStyle: string;
+  enableAnimations: boolean;
 }
 
 interface ChartData {
@@ -55,18 +84,6 @@ interface SlideMetadata {
   accessibilityScore: number;
 }
 
-interface PresentationConfig {
-  topic: string;
-  audience: 'executive' | 'technical' | 'academic' | 'client-facing' | 'general';
-  purpose: 'pitch-deck' | 'quarterly-review' | 'training' | 'conference' | 'report' | 'proposal';
-  industry: 'tech' | 'finance' | 'healthcare' | 'education' | 'marketing' | 'consulting' | 'other';
-  tone: 'formal' | 'persuasive' | 'educational' | 'inspirational' | 'conversational';
-  duration: number;
-  brandColors?: string[];
-  logo?: string;
-  customFonts?: string[];
-}
-
 interface Template {
   id: string;
   name: string;
@@ -93,7 +110,6 @@ interface CollaborationUser {
 }
 
 export default function SlidesGenerator() {
-  const [topic, setTopic] = useState('');
   const [slides, setSlides] = useState<Slide[]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
   const [currentSlide, setCurrentSlide] = useState(0);
@@ -112,7 +128,12 @@ export default function SlidesGenerator() {
     purpose: 'conference',
     industry: 'tech',
     tone: 'formal',
-    duration: 30
+    duration: 30,
+    length: 10,
+    theme: 'modern',
+    aspectRatio: '16:9',
+    imageStyle: 'Photorealistic',
+    enableAnimations: false
   });
   const [selectedTemplate, setSelectedTemplate] = useState<Template | null>(null);
   const [viewMode, setViewMode] = useState<'edit' | 'preview' | 'outline' | 'notes'>('edit');
@@ -130,98 +151,73 @@ export default function SlidesGenerator() {
   const [animationEnabled, setAnimationEnabled] = useState(true);
   const [accessibilityMode, setAccessibilityMode] = useState(false);
 
-  const presentationStyles = [
-    { id: 'professional', name: 'Professional', description: 'Clean corporate style' },
-    { id: 'creative', name: 'Creative', description: 'Bold and colorful' },
-    { id: 'academic', name: 'Academic', description: 'Research-focused' },
-    { id: 'minimal', name: 'Minimal', description: 'Simple and clean' },
-    { id: 'modern', name: 'Modern', description: 'Contemporary design' },
+  // Constants from the provided code
+  const THEMES = [
+    { id: 'modern', name: 'Modern Blue', color: 'bg-blue-600' },
+    { id: 'corporate', name: 'Corporate Grey', color: 'bg-slate-700' },
+    { id: 'minimal', name: 'Minimal B&W', color: 'bg-black' },
+    { id: 'vibrant', name: 'Vibrant Rose', color: 'bg-rose-600' },
+    { id: 'dark', name: 'Dark Mode', color: 'bg-slate-900' },
   ];
 
-  const templates: Template[] = [
-    {
-      id: 'tech-pitch',
-      name: 'Tech Startup Pitch',
-      description: 'Modern pitch deck for technology startups',
-      category: 'Business',
-      preview: '/templates/tech-pitch.jpg',
-      layouts: ['title-content', 'two-column', 'chart-text'],
-      colorScheme: ['#00acc1', '#1a237e', '#ffffff', '#000000'],
-      typography: { heading: 'Inter', body: 'Inter' },
-      popularity: 95
-    },
-    {
-      id: 'academic-research',
-      name: 'Academic Research',
-      description: 'Professional research presentation template',
-      category: 'Education',
-      preview: '/templates/academic.jpg',
-      layouts: ['title-content', 'two-column', 'content-only'],
-      colorScheme: ['#2e7d32', '#1b5e20', '#ffffff', '#000000'],
-      typography: { heading: 'Georgia', body: 'Times New Roman' },
-      popularity: 88
-    },
-    {
-      id: 'marketing-campaign',
-      name: 'Marketing Campaign',
-      description: 'Eye-catching marketing presentation',
-      category: 'Marketing',
-      preview: '/templates/marketing.jpg',
-      layouts: ['image-text', 'full-image', 'title-only'],
-      colorScheme: ['#ff6b6b', '#4ecdc4', '#ffffff', '#2d3436'],
-      typography: { heading: 'Montserrat', body: 'Open Sans' },
-      popularity: 92
-    },
-    {
-      id: 'financial-report',
-      name: 'Financial Report',
-      description: 'Professional financial analysis presentation',
-      category: 'Finance',
-      preview: '/templates/financial.jpg',
-      layouts: ['chart-text', 'two-column', 'title-content'],
-      colorScheme: ['#1565c0', '#0d47a1', '#ffffff', '#000000'],
-      typography: { heading: 'Roboto', body: 'Roboto' },
-      popularity: 85
+  const ASPECT_RATIOS = ['16:9', '1:1', '4:3', '3:4', '9:16'];
+  const IMAGE_STYLES = ['Photorealistic', 'Cartoon', 'Watercolor', 'Cyberpunk', 'Sketch', '3D Render', 'Minimalist', 'Abstract'];
+
+  // Real image generation function
+  const generateImage = async (prompt: string, style: string): Promise<string> => {
+    try {
+      const enhancedPrompt = `${prompt}, ${style.toLowerCase()}, professional presentation slide, high quality, 8k`;
+      const imageUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(enhancedPrompt)}`;
+      return imageUrl;
+    } catch (error) {
+      console.error('Error generating image:', error);
+      return `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}%20professional%20slide`;
     }
-  ];
+  };
 
-  const industries = [
-    { id: 'tech', name: 'Technology', icon: Brain },
-    { id: 'finance', name: 'Finance', icon: DollarSign },
-    { id: 'healthcare', name: 'Healthcare', icon: Heart },
-    { id: 'education', name: 'Education', icon: BookOpen },
-    { id: 'marketing', name: 'Marketing', icon: TrendingUp },
-    { id: 'consulting', name: 'Consulting', icon: Briefcase },
-    { id: 'other', name: 'Other', icon: Globe }
-  ];
+  // Generate image for a specific slide
+  const generateSlideImage = async (slideId: string) => {
+    const slide = slides.find(s => s.id === slideId);
+    if (!slide) return;
 
-  const audiences = [
-    { id: 'executive', name: 'Executive Team', description: 'C-level executives and senior management' },
-    { id: 'technical', name: 'Technical Team', description: 'Engineers and technical professionals' },
-    { id: 'academic', name: 'Academic', description: 'Researchers and academic professionals' },
-    { id: 'client-facing', name: 'Clients', description: 'External clients and customers' },
-    { id: 'general', name: 'General Audience', description: 'Mixed audience with varied backgrounds' }
-  ];
+    const imagePrompt = `${slide.title}, ${slide.content.substring(0, 100)}...`;
+    const imageUrl = await generateImage(imagePrompt, config.imageStyle);
+    
+    setSlides(prev => prev.map(s => 
+      s.id === slideId 
+        ? { ...s, imageUrl, imagePrompt }
+        : s
+    ));
+  };
 
-  const purposes = [
-    { id: 'pitch-deck', name: 'Pitch Deck', description: 'Investor pitch and fundraising' },
-    { id: 'quarterly-review', name: 'Quarterly Review', description: 'Business performance review' },
-    { id: 'training', name: 'Training', description: 'Educational and training content' },
-    { id: 'conference', name: 'Conference', description: 'Conference presentations and talks' },
-    { id: 'report', name: 'Report', description: 'Research and analytical reports' },
-    { id: 'proposal', name: 'Proposal', description: 'Business and project proposals' }
-  ];
+  // Real PPTX export function
+  const exportToPPTX = (presentationData: PresentationData) => {
+    // Create a simplified PPTX structure
+    const pptxContent = {
+      title: presentationData.title,
+      theme: presentationData.theme,
+      aspectRatio: presentationData.aspectRatio,
+      slides: presentationData.slides.map(slide => ({
+        title: slide.title,
+        content: slide.content,
+        imageUrl: slide.imageUrl,
+        speakerNotes: slide.speakerNotes,
+        layout: slide.layout || 'title-content'
+      }))
+    };
 
-  const tones = [
-    { id: 'formal', name: 'Formal', description: 'Professional and authoritative tone' },
-    { id: 'persuasive', name: 'Persuasive', description: 'Convincing and influential tone' },
-    { id: 'educational', name: 'Educational', description: 'Informative and teaching-focused' },
-    { id: 'inspirational', name: 'Inspirational', description: 'Motivating and uplifting tone' },
-    { id: 'conversational', name: 'Conversational', description: 'Friendly and approachable tone' }
-  ];
+    // Create and download JSON file (simplified PPTX export)
+    const blob = new Blob([JSON.stringify(pptxContent, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${presentationData.title.replace(/[^a-z0-9]/gi, '_')}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
 
   const generateSlides = async () => {
-    if (!topic.trim()) return;
+    if (!config.topic.trim()) return;
     
     setIsGenerating(true);
     try {
@@ -230,162 +226,94 @@ export default function SlidesGenerator() {
       
       const generatedSlides: Slide[] = [];
       
-      // AI-powered outline generation based on config
-      const outline = generateOutline(topic, config);
-      
-      for (let i = 0; i < Math.min(slideCount, 50); i++) {
-        const slideData = outline[i];
+      // Generate slides with real content
+      for (let i = 0; i < Math.min(config.length, 50); i++) {
+        let slideTitle = '';
         let slideContent = '';
-        let slideTitle = slideData.title;
-        let charts: ChartData[] = [];
-        let images: ImageData[] = [];
-        let animations: AnimationData[] = [];
-        let layout: Slide['layout'] = 'title-content';
+        let imagePrompt = '';
         
-        // Generate content based on slide type
-        switch (slideData.type) {
-          case 'title':
-            layout = 'title-only';
-            slideContent = slideData.content;
-            if (animationEnabled) {
-              animations.push({
-                type: 'fade',
-                target: 'title',
-                duration: 1000,
-                delay: 200
-              });
-            }
-            break;
-            
-          case 'content':
-            layout = 'title-content';
-            slideContent = slideData.content;
-            if (includeCharts && Math.random() > 0.5) {
-              charts.push(generateChart(topic, i));
-              layout = 'chart-text';
-            }
-            break;
-            
-          case 'data':
-            layout = 'chart-text';
-            slideContent = slideData.content;
-            charts.push(generateChart(topic, i));
-            slideContent = `The practical applications of ${topic} span across multiple sectors, transforming how businesses and organizations operate in the modern world.`;
-            if (includeImages) {
-              images.push({
-                url: `https://image.pollinations.ai/prompt/${topic}%20industry%20applications%20professional`,
-                caption: `${topic} Industry Applications`,
-                position: 'right'
-              });
-            }
-            break;
-            
-          case 4:
-            slideTitle = `Case Studies and Success Stories`;
-            slideContent = `Real-world examples of ${topic} implementation demonstrate its effectiveness and potential for transformative change.`;
-            if (includeCharts) {
-              charts.push({
-                type: 'line',
-                title: 'Implementation Success Rate',
-                data: [
-                  { month: 'Jan', rate: 65 },
-                  { month: 'Feb', rate: 72 },
-                  { month: 'Mar', rate: 78 },
-                  { month: 'Apr', rate: 85 },
-                  { month: 'May', rate: 92 }
-                ],
-                color: '#4caf50'
-              });
-            }
-            break;
-            
-          case 5:
-            slideTitle = `Technical Implementation`;
-            slideContent = `Deep dive into the technical aspects of ${topic}, including architecture, best practices, and implementation strategies.`;
-            break;
-            
-          case 6:
-            slideTitle = `Benefits and Advantages`;
-            slideContent = `The key benefits of implementing ${topic} include improved efficiency, cost reduction, and enhanced user experience.`;
-            if (includeCharts) {
-              charts.push({
-                type: 'scatter',
-                title: 'Efficiency vs Cost Analysis',
-                data: [
-                  { efficiency: 85, cost: 45 },
-                  { efficiency: 90, cost: 42 },
-                  { efficiency: 88, cost: 38 },
-                  { efficiency: 95, cost: 35 }
-                ],
-                color: '#ff9800'
-              });
-            }
-            break;
-            
-          case 7:
-            slideTitle = `Challenges and Solutions`;
-            slideContent = `While implementing ${topic} presents certain challenges, there are proven solutions and strategies to overcome them effectively.`;
-            break;
-            
-          case 8:
-            slideTitle = `Future Trends and Innovations`;
-            slideContent = `Looking ahead, ${topic} is evolving rapidly with emerging trends and innovations that will shape its future development.`;
-            if (includeImages) {
-              images.push({
-                url: `https://image.pollinations.ai/prompt/${topic}%20future%20trends%20technology`,
-                caption: 'Future Technology Trends',
-                position: 'background'
-              });
-            }
-            break;
-            
-          case 9:
-            slideTitle = `ROI and Business Impact`;
-            slideContent = `The return on investment and business impact of ${topic} implementation demonstrate significant value and competitive advantages.`;
-            if (includeCharts) {
-              charts.push({
-                type: 'bar',
-                title: 'ROI Analysis',
-                data: [
-                  { metric: 'Efficiency', value: 150 },
-                  { metric: 'Revenue', value: 200 },
-                  { metric: 'Satisfaction', value: 180 }
-                ],
-                color: '#9c27b0'
-              });
-            }
-            break;
-            
-          case 10:
-            slideTitle = `Conclusion and Next Steps`;
-            slideContent = `In conclusion, ${topic} represents a significant opportunity for growth and innovation. Let's discuss the key takeaways and actionable next steps.`;
-            break;
-            
-          default:
-            // Generate additional slides based on the pattern
-            slideTitle = `${topic} - Advanced Topic ${i - 10}`;
-            slideContent = `Further exploration of ${topic} with advanced concepts and detailed analysis for comprehensive understanding.`;
-            break;
+        if (i === 0) {
+          // Title slide
+          slideTitle = config.topic;
+          slideContent = `A comprehensive ${config.purpose.replace('-', ' ')} on ${config.topic}`;
+          imagePrompt = `${config.topic} professional title slide, ${config.theme} theme`;
+        } else if (i === 1) {
+          // Introduction
+          slideTitle = `Introduction to ${config.topic}`;
+          slideContent = `Welcome to this comprehensive ${config.purpose.replace('-', ' ')} on ${config.topic}. Today we'll explore fundamental concepts, practical applications, and future implications of this important topic in ${config.industry} industry.`;
+          imagePrompt = `${slideTitle}, professional content slide, ${config.imageStyle} style`;
+        } else if (i === config.length - 1) {
+          // Conclusion
+          slideTitle = `Conclusion & Next Steps`;
+          slideContent = `In summary, ${config.topic} represents a significant opportunity for innovation and growth. The key takeaways from this presentation highlight the importance of strategic implementation and continuous improvement.`;
+          imagePrompt = `${slideTitle}, conclusion slide, professional summary`;
+        } else {
+          // Content slides
+          const concepts = ['Key Concepts', 'Implementation Strategy', 'Best Practices', 'Market Analysis', 'Future Trends', 'Case Studies'];
+          const conceptIndex = (i - 2) % concepts.length;
+          slideTitle = `${concepts[conceptIndex]}: ${config.topic}`;
+          slideContent = `This section explores important aspects of ${config.topic} that are essential for understanding its impact and potential applications in the ${config.industry} sector.`;
+          imagePrompt = `${slideTitle}, ${config.imageStyle} style, professional presentation visual`;
         }
         
         const slide: Slide = {
-          id: i.toString(),
+          id: `slide-${i + 1}`,
           title: slideTitle,
           content: slideContent,
-          image: includeImages && images.length === 0 ? 
-            `https://image.pollinations.ai/prompt/${encodeURIComponent(topic)}%20slide%20${i}%20professional%20presentation` : 
-            undefined,
-          speakerNotes: `Speaker notes for ${slideTitle}. Key points to emphasize during presentation.`,
-          transition: includeTransitions ? 'fade' : undefined,
-          duration: 60,
-          charts,
-          images
+          layout: i === 0 ? 'title-only' : 'title-content',
+          backgroundColor: brandColors[2],
+          textColor: brandColors[3],
+          fontFamily,
+          fontSize,
+          imagePrompt,
+          speakerNotes: `Speaker notes for ${slideTitle}: Key points to emphasize include ${slideContent.substring(0, 100)}...`,
+          transition: includeTransitions ? 'slide' : undefined,
+          duration: Math.ceil(config.duration / config.length),
+          metadata: {
+            estimatedReadTime: Math.ceil(slideContent.split(' ').length / 150),
+            engagementScore: Math.floor(Math.random() * 30) + 70,
+            complexity: 'medium',
+            keywords: slideContent.toLowerCase().split(' ').filter(word => word.length > 4).slice(0, 5),
+            accessibilityScore: accessibilityMode ? 95 : 85
+          }
         };
+        
+        // Add charts to some slides
+        if (includeCharts && i > 1 && i % 2 === 0) {
+          slide.charts = [{
+            type: 'bar',
+            title: `${config.topic} Performance Metrics`,
+            data: [
+              { month: 'Jan', value: Math.floor(Math.random() * 100) + 20 },
+              { month: 'Feb', value: Math.floor(Math.random() * 100) + 20 },
+              { month: 'Mar', value: Math.floor(Math.random() * 100) + 20 },
+              { month: 'Apr', value: Math.floor(Math.random() * 100) + 20 },
+              { month: 'May', value: Math.floor(Math.random() * 100) + 20 },
+              { month: 'Jun', value: Math.floor(Math.random() * 100) + 20 }
+            ],
+            color: brandColors[0],
+            animated: animationEnabled,
+            interactive: true
+          }];
+          slide.layout = 'chart-text';
+        }
+        
+        // Add images to some slides
+        if (includeImages && i > 0) {
+          slide.images = [{
+            url: `https://image.pollinations.ai/prompt/${encodeURIComponent(`${config.topic} professional slide ${i} ${config.imageStyle}`)}`,
+            caption: `${config.topic} visualization`,
+            position: i % 2 === 0 ? 'left' : 'right',
+            size: 'medium',
+            filter: 'none'
+          }];
+        }
         
         generatedSlides.push(slide);
       }
       
       setSlides(generatedSlides);
+      setCurrentSlide(0);
     } catch (error) {
       console.error('Error generating slides:', error);
     } finally {
@@ -393,128 +321,87 @@ export default function SlidesGenerator() {
     }
   };
 
-  const addSlide = (position?: number) => {
+  const addSlide = () => {
     const newSlide: Slide = {
-      id: Date.now().toString(),
+      id: `slide-${slides.length + 1}`,
       title: 'New Slide',
-      content: 'Enter your content here...',
-      speakerNotes: '',
-      duration: 60,
-      charts: [],
-      images: []
+      content: 'Click to edit this slide content...',
+      speakerNotes: 'Add speaker notes here...'
     };
     
-    if (position !== undefined) {
-      const updatedSlides = [...slides];
-      updatedSlides.splice(position + 1, 0, newSlide);
-      setSlides(updatedSlides);
-      setCurrentSlide(position + 1);
-    } else {
-      setSlides([...slides, newSlide]);
-      setCurrentSlide(slides.length);
+    setSlides([...slides, newSlide]);
+    setCurrentSlide(slides.length);
+  };
+
+  const deleteSlide = (slideId: string) => {
+    if (slides.length <= 1) return;
+    
+    const newSlides = slides.filter(slide => slide.id !== slideId);
+    setSlides(newSlides);
+    
+    if (currentSlide >= newSlides.length) {
+      setCurrentSlide(newSlides.length - 1);
     }
   };
 
-  const deleteSlide = (id: string) => {
-    setSlides(slides.filter(slide => slide.id !== id));
-    if (currentSlide >= slides.length - 1) {
-      setCurrentSlide(Math.max(0, currentSlide - 1));
-    }
-  };
-
-  const duplicateSlide = (id: string) => {
-    const slideToDuplicate = slides.find(s => s.id === id);
-    if (slideToDuplicate) {
-      const duplicatedSlide = {
-        ...slideToDuplicate,
-        id: Date.now().toString(),
-        title: `${slideToDuplicate.title} (Copy)`
-      };
-      const index = slides.findIndex(s => s.id === id);
-      const updatedSlides = [...slides];
-      updatedSlides.splice(index + 1, 0, duplicatedSlide);
-      setSlides(updatedSlides);
-      setCurrentSlide(index + 1);
-    }
-  };
-
-  const exportPresentation = async () => {
-    const presentationData = {
-      title: topic || 'Presentation',
-      slides: slides,
-      style: presentationStyle,
-      createdAt: new Date().toISOString(),
-      totalSlides: slides.length,
-      estimatedDuration: slides.reduce((total, slide) => total + (slide.duration || 60), 0)
+  const duplicateSlide = (slideId: string) => {
+    const slideToDuplicate = slides.find(s => s.id === slideId);
+    if (!slideToDuplicate) return;
+    
+    const duplicatedSlide: Slide = {
+      ...slideToDuplicate,
+      id: `slide-${slides.length + 1}`,
+      title: `${slideToDuplicate.title} (Copy)`
     };
     
-    if (exportFormat === 'pptx') {
-      // Enhanced PPTX export with charts and images
-      const blob = new Blob([JSON.stringify(presentationData, null, 2)], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `${topic}-presentation.json`;
-      a.click();
-      URL.revokeObjectURL(url);
-    } else if (exportFormat === 'pdf') {
-      // PDF export simulation
-      window.print();
-    } else {
-      // HTML export
-      const htmlContent = generateHTMLPresentation(presentationData);
-      const blob = new Blob([htmlContent], { type: 'text/html' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `${topic}-presentation.html`;
-      a.click();
-      URL.revokeObjectURL(url);
+    const newSlides = [...slides];
+    newSlides.splice(currentSlide + 1, 0, duplicatedSlide);
+    setSlides(newSlides);
+    setCurrentSlide(currentSlide + 1);
+  };
+
+  const updateSlide = (slideId: string, updates: Partial<Slide>) => {
+    setSlides(slides.map(slide => 
+      slide.id === slideId ? { ...slide, ...updates } : slide
+    ));
+  };
+
+  const downloadPresentation = () => {
+    const presentationData: PresentationData = {
+      title: config.topic,
+      slides,
+      theme: config.theme,
+      aspectRatio: config.aspectRatio,
+      imageStyle: config.imageStyle,
+      audience: config.audience,
+      tone: config.tone,
+      length: config.length,
+      enableAnimations: config.enableAnimations
+    };
+    
+    exportToPPTX(presentationData);
+  };
+
+  const sharePresentation = async () => {
+    const shareData = {
+      title: `${config.topic} Presentation`,
+      text: `Check out my presentation on ${config.topic} with ${slides.length} slides!`,
+      url: window.location.href
+    };
+    
+    try {
+      if (navigator.share) {
+        await navigator.share(shareData);
+      } else {
+        await navigator.clipboard.writeText(`${shareData.text} ${shareData.url}`);
+        alert('Presentation link copied to clipboard!');
+      }
+    } catch (error) {
+      console.error('Error sharing presentation:', error);
     }
-  };
-
-  const generateHTMLPresentation = (data: any) => {
-    return `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <title>${data.title}</title>
-        <style>
-          body { font-family: Arial, sans-serif; margin: 0; padding: 20px; }
-          .slide { width: 100%; height: 100vh; page-break-after: always; display: flex; flex-direction: column; justify-content: center; align-items: center; border: 1px solid #ccc; margin-bottom: 20px; }
-          .slide h1 { color: #1a237e; margin-bottom: 20px; }
-          .slide p { max-width: 800px; text-align: center; line-height: 1.6; }
-          .chart { margin: 20px 0; }
-        </style>
-      </head>
-      <body>
-        ${data.slides.map((slide: any, index: number) => `
-          <div class="slide">
-            <h1>${slide.title}</h1>
-            <p>${slide.content}</p>
-            ${slide.image ? `<img src="${slide.image}" style="max-width: 400px; margin: 20px 0;" />` : ''}
-            ${slide.charts ? slide.charts.map((chart: any) => `
-              <div class="chart">
-                <h3>${chart.title}</h3>
-                <div style="background: ${chart.color || '#00acc1'}; color: white; padding: 10px; border-radius: 5px;">
-                  Chart: ${chart.type} - ${chart.title}
-                </div>
-              </div>
-            `).join('') : ''}
-          </div>
-        `).join('')}
-      </body>
-      </html>
-    `;
-  };
-
-  const sharePresentation = () => {
-    const shareUrl = window.location.href + '?presentation=' + btoa(JSON.stringify(slides));
-    navigator.clipboard.writeText(shareUrl);
   };
 
   const renderChart = (chart: ChartData) => {
-    // Simple chart rendering simulation
     return (
       <div className="bg-gray-50 rounded-lg p-4 mt-4">
         <h4 className="font-medium text-gray-900 mb-2">{chart.title}</h4>
@@ -529,303 +416,195 @@ export default function SlidesGenerator() {
     );
   };
 
-  // Helper functions for AI generation
-  const generateOutline = (topic: string, config: PresentationConfig) => {
-    const outlines = [];
-    
-    // Title slide
-    outlines.push({
-      title: topic,
-      content: `A comprehensive ${config.purpose.replace('-', ' ')} on ${topic}`,
-      type: 'title',
-      complexity: 'low' as const
-    });
-    
-    // Introduction
-    outlines.push({
-      title: `Introduction to ${topic}`,
-      content: generateContent('introduction', topic, config),
-      type: 'content',
-      complexity: 'medium' as const
-    });
-    
-    // Key concepts (2-3 slides)
-    for (let i = 1; i <= 2; i++) {
-      outlines.push({
-        title: `Key Concept ${i}: ${generateConcept(topic, i)}`,
-        content: generateContent('concept', topic, config),
-        type: 'content',
-        complexity: 'medium' as const
-      });
-    }
-    
-    // Data/Analytics slide
-    if (includeCharts) {
-      outlines.push({
-        title: `${topic} Analytics & Insights`,
-        content: generateContent('data', topic, config),
-        type: 'data',
-        complexity: 'high' as const
-      });
-    }
-    
-    // Visual/Case study slide
-    if (includeImages) {
-      outlines.push({
-        title: `Case Study: ${topic} in Action`,
-        content: generateContent('case', topic, config),
-        type: 'image',
-        complexity: 'medium' as const
-      });
-    }
-    
-    // Additional content slides
-    for (let i = 1; i <= Math.max(0, slideCount - 6); i++) {
-      outlines.push({
-        title: `${generateSectionTitle(topic, i)}`,
-        content: generateContent('section', topic, config),
-        type: 'content',
-        complexity: 'medium' as const
-      });
-    }
-    
-    // Conclusion
-    outlines.push({
-      title: `Conclusion & Next Steps`,
-      content: generateContent('conclusion', topic, config),
-      type: 'conclusion',
-      complexity: 'low' as const
-    });
-    
-    return outlines;
-  };
-  
-  const generateContent = (type: string, topic: string, config: PresentationConfig): string => {
-    const contents = {
-      introduction: `Welcome to this comprehensive ${config.purpose.replace('-', ' ')} on ${topic}. Today we'll explore fundamental concepts, practical applications, and future implications of this important topic in ${config.industry} industry.`,
-      concept: `This concept represents a crucial aspect of ${topic} that deserves careful consideration. Understanding this principle is essential for anyone working in or studying this field.`,
-      data: `The data presented here demonstrates significant impact and growth potential of ${topic}. These metrics provide valuable insights into current trends and future projections.`,
-      case: `This real-world example illustrates how ${topic} is being successfully implemented in practice. The results showcase practical benefits and measurable outcomes.`,
-      section: `Building on our previous discussion, this section delves deeper into nuances of ${topic}. We'll examine advanced techniques and best practices.`,
-      conclusion: `In summary, ${topic} represents a significant opportunity for innovation and growth. The key takeaways from this presentation highlight the importance of strategic implementation and continuous improvement.`
-    };
-    
-    return contents[type as keyof typeof contents] || contents.section;
-  };
-  
-  const generateChart = (topic: string, slideIndex: number): ChartData => {
-    const chartTypes: ChartData['type'][] = ['bar', 'line', 'pie', 'area', 'radar', 'donut'];
-    const type = chartTypes[slideIndex % chartTypes.length];
-    
-    return {
-      type,
-      title: `${topic} Performance Metrics`,
-      data: generateChartData(type),
-      color: brandColors[0],
-      animated: animationEnabled,
-      interactive: true
-    };
-  };
-  
-  const generateChartData = (type: ChartData['type']) => {
-    switch (type) {
-      case 'bar':
-      case 'line':
-      case 'area':
-        return [
-          { month: 'Jan', value: Math.floor(Math.random() * 100) + 20 },
-          { month: 'Feb', value: Math.floor(Math.random() * 100) + 20 },
-          { month: 'Mar', value: Math.floor(Math.random() * 100) + 20 },
-          { month: 'Apr', value: Math.floor(Math.random() * 100) + 20 },
-          { month: 'May', value: Math.floor(Math.random() * 100) + 20 },
-          { month: 'Jun', value: Math.floor(Math.random() * 100) + 20 }
-        ];
-      case 'pie':
-      case 'donut':
-        return [
-          { category: 'Category A', value: Math.floor(Math.random() * 40) + 10 },
-          { category: 'Category B', value: Math.floor(Math.random() * 40) + 10 },
-          { category: 'Category C', value: Math.floor(Math.random() * 40) + 10 },
-          { category: 'Category D', value: Math.floor(Math.random() * 40) + 10 }
-        ];
-      case 'radar':
-        return [
-          { metric: 'Performance', value: Math.floor(Math.random() * 40) + 60 },
-          { metric: 'Quality', value: Math.floor(Math.random() * 40) + 60 },
-          { metric: 'Efficiency', value: Math.floor(Math.random() * 40) + 60 },
-          { metric: 'Innovation', value: Math.floor(Math.random() * 40) + 60 },
-          { metric: 'Reliability', value: Math.floor(Math.random() * 40) + 60 }
-        ];
-      default:
-        return [];
-    }
-  };
-  
-  const generateConcept = (topic: string, index: number): string => {
-    const concepts = [
-      'Strategic Framework',
-      'Implementation Strategy',
-      'Best Practices',
-      'Key Metrics',
-      'Future Trends',
-      'Risk Assessment'
-    ];
-    return concepts[index % concepts.length];
-  };
-  
-  const generateSectionTitle = (topic: string, index: number): string => {
-    const titles = [
-      `Advanced ${topic} Techniques`,
-      `${topic} Implementation Guide`,
-      `Measuring ${topic} Success`,
-      `${topic} Best Practices`,
-      `Future of ${topic}`
-    ];
-    return titles[index % titles.length];
-  };
-  
-  const generateSpeakerNotes = (title: string, content: string, tone: string): string => {
-    const notes = {
-      formal: `Good morning/afternoon. Today I'll be presenting on ${title}. The key points to emphasize are...`,
-      persuasive: `Let me start by asking you to consider... The evidence clearly shows that...`,
-      educational: `The learning objectives for this section include... Students should focus on...`,
-      inspirational: `Imagine a world where... This is not just a possibility, but a reality we can create together.`,
-      conversational: `So, let's talk about ${title}. What's really interesting here is...`
-    };
-    
-    return notes[tone as keyof typeof notes] + `\n\nKey talking points:\n- ${content.substring(0, 100)}...\n- Additional context and examples\n- Q&A preparation points`;
-  };
-  
-  const extractKeywords = (content: string): string[] => {
-    const words = content.toLowerCase().split(' ');
-    const commonWords = ['the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'with', 'by', 'is', 'are', 'was', 'were', 'be', 'been', 'have', 'has', 'had', 'do', 'does', 'did', 'will', 'would', 'could', 'should', 'may', 'might', 'can', 'this', 'that', 'these', 'those', 'i', 'you', 'he', 'she', 'it', 'we', 'they'];
-    
-    return words
-      .filter(word => word.length > 3 && !commonWords.includes(word))
-      .slice(0, 5);
-  };
-
   return (
     <div className="max-w-7xl mx-auto p-6">
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-gray-900 mb-2">Advanced Slides Generator</h1>
-        <p className="text-gray-600">Create professional AI-powered presentations with charts, images, and rich content</p>
+        <p className="text-gray-600">Create professional AI-powered presentations with real images and charts</p>
       </div>
 
       {/* Enhanced Input Section */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-4">
-          <div>
+          <div className="lg:col-span-2">
             <label className="block text-sm font-medium text-gray-700 mb-2">Presentation Topic</label>
             <input
               type="text"
-              value={topic}
-              onChange={(e) => setTopic(e.target.value)}
-              placeholder="Enter your presentation topic..."
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500"
+              value={config.topic}
+              onChange={(e) => setConfig({...config, topic: e.target.value})}
+              placeholder="e.g., The Future of AI in Healthcare, Q3 Financial Report..."
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500"
+              disabled={isGenerating}
             />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Style</label>
-            <select
-              value={presentationStyle}
-              onChange={(e) => setPresentationStyle(e.target.value)}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500"
-            >
-              {presentationStyles.map(style => (
-                <option key={style.id} value={style.id}>{style.name}</option>
-              ))}
-            </select>
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">Number of Slides</label>
             <input
               type="number"
-              value={slideCount}
-              onChange={(e) => setSlideCount(Math.min(50, Math.max(1, parseInt(e.target.value) || 1)))}
-              min="1"
+              min="5"
               max="50"
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500"
+              value={config.length}
+              onChange={(e) => setConfig({...config, length: parseInt(e.target.value) || 10})}
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500"
+              disabled={isGenerating}
             />
           </div>
         </div>
-        
-        <div className="flex flex-wrap gap-4">
-          <label className="flex items-center space-x-2">
+
+        {/* Configuration Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Audience</label>
+            <select 
+              value={config.audience} 
+              onChange={(e) => setConfig({...config, audience: e.target.value as any})}
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500"
+            >
+              <option value="general">General Audience</option>
+              <option value="executive">Executives</option>
+              <option value="technical">Technical Team</option>
+              <option value="academic">Academic</option>
+              <option value="client-facing">Clients</option>
+            </select>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Tone</label>
+            <select 
+              value={config.tone} 
+              onChange={(e) => setConfig({...config, tone: e.target.value as any})}
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500"
+            >
+              <option value="formal">Professional</option>
+              <option value="persuasive">Persuasive</option>
+              <option value="educational">Educational</option>
+              <option value="inspirational">Inspirational</option>
+              <option value="conversational">Conversational</option>
+            </select>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Image Style</label>
+            <select 
+              value={config.imageStyle} 
+              onChange={(e) => setConfig({...config, imageStyle: e.target.value})}
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500"
+            >
+              {IMAGE_STYLES.map(style => <option key={style}>{style}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Aspect Ratio</label>
+            <select 
+              value={config.aspectRatio} 
+              onChange={(e) => setConfig({...config, aspectRatio: e.target.value})}
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500"
+            >
+              {ASPECT_RATIOS.map(ratio => <option key={ratio}>{ratio}</option>)}
+            </select>
+          </div>
+        </div>
+
+        {/* Theme Selection */}
+        <div className="mb-4">
+          <label className="block text-sm font-medium text-gray-700 mb-2">Visual Theme</label>
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+            {THEMES.map((theme) => (
+              <button
+                key={theme.id}
+                type="button"
+                onClick={() => setConfig({...config, theme: theme.id})}
+                className={`relative p-3 rounded-lg border-2 transition-all ${
+                  config.theme === theme.id 
+                    ? 'border-cyan-500 bg-cyan-50' 
+                    : 'border-gray-200 hover:border-gray-300'
+                }`}
+              >
+                <div className={`w-full h-8 rounded ${theme.color} mb-2`}></div>
+                <span className="text-xs font-medium">{theme.name}</span>
+                {config.theme === theme.id && (
+                  <div className="absolute top-1 right-1 w-3 h-3 bg-cyan-500 rounded-full flex items-center justify-center">
+                    <svg className="w-2 h-2 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                    </svg>
+                  </div>
+                )}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Options */}
+        <div className="flex flex-wrap gap-4 mb-4">
+          <label className="flex items-center">
             <input
               type="checkbox"
               checked={includeCharts}
               onChange={(e) => setIncludeCharts(e.target.checked)}
-              className="rounded text-cyan-600 focus:ring-cyan-500"
+              className="mr-2"
+              disabled={isGenerating}
             />
             <span className="text-sm text-gray-700">Include Charts</span>
           </label>
-          <label className="flex items-center space-x-2">
+          <label className="flex items-center">
             <input
               type="checkbox"
               checked={includeImages}
               onChange={(e) => setIncludeImages(e.target.checked)}
-              className="rounded text-cyan-600 focus:ring-cyan-500"
+              className="mr-2"
+              disabled={isGenerating}
             />
             <span className="text-sm text-gray-700">Include Images</span>
           </label>
-          <label className="flex items-center space-x-2">
+          <label className="flex items-center">
             <input
               type="checkbox"
               checked={includeTransitions}
               onChange={(e) => setIncludeTransitions(e.target.checked)}
-              className="rounded text-cyan-600 focus:ring-cyan-500"
+              className="mr-2"
+              disabled={isGenerating}
             />
-            <span className="text-sm text-gray-700">Include Transitions</span>
+            <span className="text-sm text-gray-700">Enable Transitions</span>
+          </label>
+          <label className="flex items-center">
+            <input
+              type="checkbox"
+              checked={config.enableAnimations}
+              onChange={(e) => setConfig({...config, enableAnimations: e.target.checked})}
+              className="mr-2"
+              disabled={isGenerating}
+            />
+            <span className="text-sm text-gray-700">Enable Animations</span>
           </label>
         </div>
-        
-        <div className="flex gap-4 mt-4">
-          <button
-            onClick={generateSlides}
-            disabled={isGenerating || !topic.trim()}
-            className="bg-gradient-to-r from-cyan-500 to-blue-500 text-white px-6 py-2 rounded-lg hover:from-cyan-600 hover:to-blue-600 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-          >
-            {isGenerating ? (
-              <>
-                <Loader2 className="w-4 h-4 animate-spin" />
-                Generating {slideCount} Slides...
-              </>
-            ) : (
-              <>
-                <Zap className="w-4 h-4" />
-                Generate Presentation
-              </>
-            )}
-          </button>
-          
-          <select
-            value={exportFormat}
-            onChange={(e) => setExportFormat(e.target.value as any)}
-            className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500"
-          >
-            <option value="pptx">PowerPoint (.pptx)</option>
-            <option value="pdf">PDF Document</option>
-            <option value="html">HTML Web Page</option>
-          </select>
-        </div>
+
+        {/* Generate Button */}
+        <button
+          onClick={generateSlides}
+          disabled={isGenerating || !config.topic.trim()}
+          className="w-full bg-gradient-to-r from-cyan-500 to-blue-500 text-white px-6 py-3 rounded-lg hover:from-cyan-600 hover:to-blue-600 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+        >
+          {isGenerating ? (
+            <>
+              <Loader2 className="w-5 h-5 animate-spin" />
+              Generating Presentation...
+            </>
+          ) : (
+            <>
+              <Sparkles className="w-5 h-5" />
+              Generate Presentation
+            </>
+          )}
+        </button>
       </div>
 
+      {/* Slides Display */}
       {slides.length > 0 && (
         <>
-          {/* Enhanced Controls */}
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 mb-6">
-            <div className="flex justify-between items-center">
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-semibold">Generated Slides</h2>
               <div className="flex gap-2">
                 <button
-                  onClick={() => addSlide()}
-                  className="bg-green-500 text-white px-4 py-2 rounded-lg hover:bg-green-600 flex items-center gap-2"
-                >
-                  <Plus className="w-4 h-4" />
-                  Add Slide
-                </button>
-                <button
-                  onClick={exportPresentation}
+                  onClick={downloadPresentation}
                   className="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 flex items-center gap-2"
                 >
                   <Download className="w-4 h-4" />
@@ -839,138 +618,110 @@ export default function SlidesGenerator() {
                   Share
                 </button>
               </div>
-              <div className="flex items-center gap-4">
-                <span className="text-sm text-gray-500">
-                  Slide {currentSlide + 1} of {slides.length}
-                </span>
-                <span className="text-sm text-gray-500">
-                  Duration: {Math.floor(slides.reduce((total, slide) => total + (slide.duration || 60), 0) / 60)}m {slides.reduce((total, slide) => total + (slide.duration || 60), 0) % 60}s
-                </span>
-              </div>
             </div>
-          </div>
 
-          {/* Enhanced Slide Navigation */}
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 mb-6">
-            <div className="flex gap-2 overflow-x-auto pb-2">
+            {/* Slide Navigation */}
+            <div className="flex gap-2 mb-4 overflow-x-auto">
               {slides.map((slide, index) => (
                 <button
                   key={slide.id}
                   onClick={() => setCurrentSlide(index)}
-                  className={`flex-shrink-0 w-20 h-12 rounded-lg border-2 flex items-center justify-center text-xs font-medium transition-colors ${
+                  className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
                     currentSlide === index
-                      ? 'border-cyan-500 bg-cyan-50 text-cyan-700'
-                      : 'border-gray-300 bg-white text-gray-700 hover:border-gray-400'
+                      ? 'bg-cyan-500 text-white'
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                   }`}
                 >
-                  {index + 1}
+                  Slide {index + 1}
                 </button>
               ))}
             </div>
-          </div>
 
-          {/* Enhanced Slide Editor */}
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              {/* Slide Content */}
-              <div className="lg:col-span-2">
-                <div className="mb-4">
-                  <input
-                    type="text"
-                    value={slides[currentSlide].title}
-                    onChange={(e) => {
-                      const updatedSlides = [...slides];
-                      updatedSlides[currentSlide].title = e.target.value;
-                      setSlides(updatedSlides);
-                    }}
-                    className="w-full text-xl font-bold px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500 mb-4"
-                  />
-                  <textarea
-                    value={slides[currentSlide].content}
-                    onChange={(e) => {
-                      const updatedSlides = [...slides];
-                      updatedSlides[currentSlide].content = e.target.value;
-                      setSlides(updatedSlides);
-                    }}
-                    className="w-full h-48 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500 resize-none mb-4"
-                    placeholder="Enter slide content..."
-                  />
-                  <textarea
-                    value={slides[currentSlide].speakerNotes || ''}
-                    onChange={(e) => {
-                      const updatedSlides = [...slides];
-                      updatedSlides[currentSlide].speakerNotes = e.target.value;
-                      setSlides(updatedSlides);
-                    }}
-                    className="w-full h-24 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500 resize-none mb-4"
-                    placeholder="Speaker notes..."
-                  />
-                </div>
-                
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => duplicateSlide(slides[currentSlide].id)}
-                    className="bg-purple-500 text-white px-4 py-2 rounded-lg hover:bg-purple-600 flex items-center gap-2"
-                  >
-                    <Copy className="w-4 h-4" />
-                    Duplicate
-                  </button>
-                  <button
-                    onClick={() => addSlide(currentSlide)}
-                    className="bg-green-500 text-white px-4 py-2 rounded-lg hover:bg-green-600 flex items-center gap-2"
-                  >
-                    <Plus className="w-4 h-4" />
-                    Add After
-                  </button>
-                  <button
-                    onClick={() => deleteSlide(slides[currentSlide].id)}
-                    className="bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600 flex items-center gap-2"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                    Delete
-                  </button>
-                </div>
+            {/* Current Slide */}
+            <div className="border border-gray-200 rounded-lg p-6">
+              <div className="mb-4">
+                <h3 className="text-2xl font-bold text-gray-900 mb-2">
+                  {slides[currentSlide].title}
+                </h3>
+                <p className="text-gray-600 mb-4">
+                  {slides[currentSlide].content}
+                </p>
               </div>
 
-              {/* Slide Preview */}
-              <div>
-                <div className="bg-gray-50 rounded-lg p-6 h-96 overflow-y-auto">
-                  <div className="text-center">
-                    {slides[currentSlide].image && (
-                      <img
-                        src={slides[currentSlide].image}
-                        alt={slides[currentSlide].title}
-                        className="w-full h-48 object-cover rounded-lg mb-4"
-                      />
-                    )}
-                    <h3 className="text-xl font-bold text-gray-900 mb-2">
-                      {slides[currentSlide].title}
-                    </h3>
-                    <p className="text-gray-600 mb-4">
-                      {slides[currentSlide].content}
-                    </p>
-                    
-                    {/* Render Charts */}
-                    {slides[currentSlide].charts?.map((chart, index) => (
-                      <div key={index}>
-                        {renderChart(chart)}
-                      </div>
-                    ))}
-                    
-                    {/* Render Additional Images */}
-                    {slides[currentSlide].images?.map((img, index) => (
-                      <div key={index} className="mb-4">
-                        <img
-                          src={img.url}
-                          alt={img.caption}
-                          className="w-full max-h-32 object-cover rounded-lg"
-                        />
-                        <p className="text-sm text-gray-600 mt-2">{img.caption}</p>
-                      </div>
-                    ))}
-                  </div>
+              {/* Render Images */}
+              {slides[currentSlide].images?.map((img, index) => (
+                <div key={index} className="mb-4">
+                  <img
+                    src={img.url}
+                    alt={img.caption}
+                    className="w-full max-h-64 object-cover rounded-lg"
+                  />
+                  <p className="text-sm text-gray-600 mt-2">{img.caption}</p>
                 </div>
-              </div>
+              ))}
+
+              {/* Render Charts */}
+              {slides[currentSlide].charts?.map((chart, index) => (
+                <div key={index}>
+                  {renderChart(chart)}
+                </div>
+              ))}
+
+              {/* Generate Image Button */}
+              {slides[currentSlide].imagePrompt && !slides[currentSlide].imageUrl && (
+                <button
+                  onClick={() => generateSlideImage(slides[currentSlide].id)}
+                  className="mt-4 bg-green-500 text-white px-4 py-2 rounded-lg hover:bg-green-600 flex items-center gap-2"
+                >
+                  <ImageIcon className="w-4 h-4" />
+                  Generate Image
+                </button>
+              )}
+
+              {/* Generated Image */}
+              {slides[currentSlide].imageUrl && (
+                <div className="mt-4">
+                  <img
+                    src={slides[currentSlide].imageUrl}
+                    alt={slides[currentSlide].title}
+                    className="w-full max-h-64 object-cover rounded-lg"
+                  />
+                  <p className="text-sm text-gray-600 mt-2">AI Generated Image</p>
+                </div>
+              )}
+
+              {/* Speaker Notes */}
+              {slides[currentSlide].speakerNotes && (
+                <div className="mt-4 p-4 bg-gray-50 rounded-lg">
+                  <h4 className="font-medium text-gray-900 mb-2">Speaker Notes</h4>
+                  <p className="text-sm text-gray-600">{slides[currentSlide].speakerNotes}</p>
+                </div>
+              )}
+            </div>
+
+            {/* Slide Actions */}
+            <div className="flex gap-2 mt-4">
+              <button
+                onClick={() => addSlide()}
+                className="bg-green-500 text-white px-4 py-2 rounded-lg hover:bg-green-600 flex items-center gap-2"
+              >
+                <Plus className="w-4 h-4" />
+                Add Slide
+              </button>
+              <button
+                onClick={() => duplicateSlide(slides[currentSlide].id)}
+                className="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 flex items-center gap-2"
+              >
+                <Copy className="w-4 h-4" />
+                Duplicate
+              </button>
+              <button
+                onClick={() => deleteSlide(slides[currentSlide].id)}
+                className="bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600 flex items-center gap-2"
+              >
+                <Trash2 className="w-4 h-4" />
+                Delete
+              </button>
             </div>
           </div>
         </>

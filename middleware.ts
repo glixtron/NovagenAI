@@ -1,26 +1,30 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
+import { getToken } from 'next-auth/jwt'
 
 // This middleware protects only specific routes, not the home page
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
+  
+  // 1. Get the token (session)
+  const token = await getToken({ 
+    req: request, 
+    secret: process.env.NEXTAUTH_SECRET 
+  })
 
-  // Protect only these routes
-  const protectedRoutes = ['/slides', '/catalogue', '/dashboard']  
-  // Allow public routes and static assets
-  const publicRoutes = ['/', '/auth/signin', '/auth/signout', '/api/auth']
+  // 2. Define protected routes
+  const protectedRoutes = ['/slides', '/catalogue', '/dashboard']
   
-  // Check if current path is protected
+  // 3. Check if current path is protected
   const isProtectedRoute = protectedRoutes.some(route => pathname.startsWith(route))
-  const isPublicRoute = publicRoutes.some(route => pathname === route)
   
-  // If accessing protected route without authentication, redirect to sign-in
-  if (isProtectedRoute && !isPublicRoute) {
+  // 4. Logic: Only redirect if accessing protected route WITHOUT a valid token
+  if (isProtectedRoute && !token) {
     const signInUrl = new URL('/auth/signin', request.url)
     return NextResponse.redirect(signInUrl)
   }
   
-  // Allow access to public routes
+  // 5. Allow access to all other routes (including home page)
   return NextResponse.next()
 }
 

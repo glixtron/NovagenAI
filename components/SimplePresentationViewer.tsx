@@ -20,17 +20,18 @@ const SimplePresentationViewer: React.FC<SimplePresentationViewerProps> = ({ pre
   // Initialize with pre-generated images from presentation data
   const [generatedImages, setGeneratedImages] = useState<{ [key: string]: string }>({});
 
-  // Generate missing images on component mount
+  // Generate missing images on component mount - AUTOMATIC IMAGE GENERATION
   useEffect(() => {
     const generateMissingImages = async () => {
       for (const slide of presentation.slides) {
         if (!generatedImages[slide.id]) {
+          // AUTOMATIC: Generate image immediately when slide text is available
           await generateSlideImage(slide.id);
         }
       }
     };
     
-    // Auto-generate images for slides that don't have them
+    // Auto-generate images for slides that don't have them - NO USER INTERACTION NEEDED
     generateMissingImages();
   }, [presentation.slides]);
 
@@ -161,6 +162,12 @@ const SimplePresentationViewer: React.FC<SimplePresentationViewerProps> = ({ pre
   const generateSlideImage = async (slideId: string) => {
     try {
       console.log(`🎨 Generating image for slide: ${slideId}`);
+      // Find the slide object to get its imagePrompt
+      const slide = presentation.slides.find(s => s.id === slideId);
+      if (!slide) {
+        console.error(`❌ Slide with ID ${slideId} not found`);
+        return;
+      }
       const imageUrl = await generateRealImage(slide.imagePrompt, presentation.aspectRatio || '16:9');
       setGeneratedImages(prev => ({ ...prev, [slideId]: imageUrl }));
       console.log(`✅ Image generated successfully for slide: ${slideId}`);

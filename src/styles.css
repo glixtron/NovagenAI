@@ -3,6 +3,7 @@
   position: relative;
   padding-right: 60px; /* Creates a 'dead zone' for the icon */
   line-height: 1.6;    /* Prevents vertical text clashing */
+  z-index: 1;          /* Text container layer */
 }
 
 /* Generate Image Icon - Ensure it stays above text */
@@ -11,5 +12,5 @@
   right: 10px;
   top: 50%;
   transform: translateY(-50%);
-  z-index: 10; /* Ensures icon stays on top of text layer */
+  z-index: 100;        /* Ensures icon stays on top of text layer */
 }

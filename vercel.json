@@ -1,12 +1,17 @@
 {
   "version": 2,
-  "builds": {
-    "outDir": "dist"
-  },
+  "builds": [
+    {
+      "src": "package.json",
+      "use": "@vercel/static-build",
+      "config": {
+        "distDir": "dist"
+      }
+    }
+  ],
   "headers": [
     {
       "source": "/(.*)",
-      "destination": "/index.html",
       "headers": [
         {
           "key": "X-Content-Type-Options",

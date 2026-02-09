@@ -16,24 +16,17 @@ export default defineConfig(({ mode }) => {
       'process.env.DEEPSEEK_API_KEY': JSON.stringify(env.DEEPSEEK_API_KEY)
     },
     build: {
-      outDir: 'dist',
+      outDir: 'dist', // Vercel expects 'dist' folder
       sourcemap: false, // Disable source maps for security in production
       rollupOptions: {
         output: {
           manualChunks: (id: string) => {
+            // Simple string chunk names for Vercel compatibility
             if (id.includes('multiAIService')) {
-              return {
-                entry: 'src/services/multiAIService.ts',
-                fileName: 'multiAIService.js',
-                name: 'Multi-AI Service'
-              };
+              return 'multiAIService';
             }
             if (id.includes('LogoDesigner')) {
-              return {
-                entry: 'src/components/LogoDesigner.tsx',
-                fileName: 'LogoDesigner.tsx',
-                name: 'Logo Designer'
-              };
+              return 'LogoDesigner';
             }
           }
         }

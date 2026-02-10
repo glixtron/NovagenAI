@@ -2,7 +2,8 @@
 // learn more about it in the docs: https://pris.ly/d/prisma-schema
 
 generator client {
-  provider = "prisma-client-js"
+  provider = "postgresql"
+  output   = "../generated/prisma-client"
 }
 
 datasource db {
@@ -10,49 +11,300 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// User management
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String
+  avatar    String?
+  role      UserRole @default(USER)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@map("users")
+}
+
+enum UserRole {
+  USER
+  ADMIN
+  PREMIUM
+}
+
+// Authentication and sessions
 model Account {
   id                String  @id @default(cuid())
   userId            String
-  type              String
+  type              AccountType
   provider          String
-  providerAccountId String
-  refresh_token      String? @db.Text
-  access_token       String? @db.Text
-  expires_at         Int?
-  token_type         String?
-  scope              String?
-  id_token           String? @db.Text
-  session_state      String? @db.Text
+  providerAccountId String?
+  accessToken       String
+  refreshToken      String?
+  expiresAt         DateTime?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@unique([provider, providerAccountId])
+  @@map("accounts")
 }
 
-model Session {
+enum AccountType {
+  OAUTH
+  EMAIL
+  API_KEY
+}
+
+// Presentations
+model Presentation {
+  id          String   @id @default(cuid())
+  title       String
+  description String?
+  userId      String
+  templateId  String?
+  status      PresentationStatus @default(DRAFT)
+  data        Json?    // Store canvas state, elements, etc.
+  settings    Json?    // Canvas settings, theme, etc.
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("presentations")
+}
+
+enum PresentationStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+  PROCESSING
+}
+
+// Slides within presentations
+model Slide {
+  id             String   @id @default(cuid())
+  presentationId String
+  order          Int
+  title          String
+  content        Json?    // Rich text content, elements, etc.
+  background     Json?    // Background settings
+  transitions    Json?    // Animation settings
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@map("slides")
+}
+
+// Elements within slides
+model Element {
   id           String   @id @default(cuid())
-  sessionToken String   @unique
+  slideId      String
+  type         ElementType
+  content      Json     // Element data, position, style, etc.
+  zIndex       Int      @default(0)
+  locked       Boolean  @default(false)
+  visible      Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@map("elements")
+}
+
+enum ElementType {
+  TEXT
+  SHAPE
+  IMAGE
+  DRAWING
+  CHART
+  VIDEO
+}
+
+// Templates
+model Template {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  category    String
+  thumbnail   String
+  data        Json      // Template structure, elements, etc.
+  tags        String[]
+  isPublic    Boolean  @default(false)
+  downloads   Int      @default(0)
+  rating      Float    @default(0)
+  createdBy   String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("templates")
+}
+
+// Collaboration
+model Collaboration {
+  id            String   @id @default(cuid())
+  presentationId String
+  userId        String
+  role          CollaborationRole @default(VIEWER)
+  permissions    Json      // Specific permissions for this user
+  joinedAt       DateTime @default(now())
+  lastActiveAt   DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@map("collaborations")
+}
+
+enum CollaborationRole {
+  OWNER
+  EDITOR
+  VIEWER
+  COMMENTER
+}
+
+// Real-time presence
+model Presence {
+  id           String   @id @default(cuid())
   userId       String
-  expires      DateTime
-  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  presentationId String?
+  socketId    String
+  cursor       Json?    // Cursor position, selection, etc.
+  status       UserStatus @default(ACTIVE)
+  lastSeen     DateTime @default(now())
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
-  @@unique([sessionToken])
+  @@map("presence")
 }
 
-model User {
-  id            String    @id @default(cuid())
-  name          String?
-  email         String?   @unique
-  emailVerified DateTime?
-  image         String?
-  accounts      Account[]
-  sessions      Session[]
+enum UserStatus {
+  ACTIVE
+  IDLE
+  AWAY
+  BUSY
 }
 
-model VerificationToken {
-  identifier String
-  token      String   @unique
-  expires    DateTime
+// File storage metadata
+model StorageFile {
+  id           String   @id @default(cuid())
+  originalName String
+  filename     String
+  mimeType     String
+  size         Int
+  url          String
+  key          String   // S3 key
+  bucket       String
+  region       String
+  uploadedBy   String
+  isPublic     Boolean  @default(false)
+  downloads    Int      @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
-  @@unique([identifier, token])
+  entry       String @default("files")
+
+  @@map("storage_files")
+}
+
+// AI generation logs
+model AIGeneration {
+  id           String   @id @default(cuid())
+  userId       String?
+  prompt       String
+  model        String
+  response     Json     // AI response data
+  tokens       Int      // Token usage
+  cost         Float    // API cost
+  latency      Int      // Response time in ms
+  status       GenerationStatus @default(PENDING)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@map("ai_generations")
+}
+
+enum GenerationStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
+// Queue jobs
+model QueueJob {
+  id           String   @id @default(cuid())
+  type         JobType
+  data         Json      // Job payload
+  priority     JobPriority @default(NORMAL)
+  status       JobStatus @default(QUEUED)
+  attempts     Int      @default(0)
+  maxAttempts  Int      @default(3)
+  scheduledAt  DateTime @default(now())
+  startedAt    DateTime?
+  completedAt  DateTime?
+  failedAt     DateTime?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@map("queue_jobs")
+}
+
+enum JobType {
+  PRESENTATION_PROCESSING
+  IMAGE_GENERATION
+  CONTENT_GENERATION
+  EMAIL_SENDING
+  SEARCH_INDEXING
+}
+
+enum JobPriority {
+  LOW
+  NORMAL
+  HIGH
+  CRITICAL
+}
+
+enum JobStatus {
+  QUEUED
+  PROCESSING
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
+// Search index
+model SearchIndex {
+  id           String   @id @default(cuid())
+  entityType   String   // 'template', 'presentation', 'user', etc.
+  entityId     String
+  content      Json      // Searchable content
+  keywords     String[]
+  weight       Float    @default(1.0)
+  indexedAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@map("search_indices")
+}
+
+// Analytics and metrics
+model Analytics {
+  id           String   @id @default(cuid())
+  userId       String?
+  event        AnalyticsEvent
+  properties   Json      // Event properties
+  value        Float?   // Event value
+  timestamp    DateTime @default(now())
+  createdAt    DateTime @default(now())
+
+  @@map("analytics")
+}
+
+enum AnalyticsEvent {
+  PRESENTATION_CREATED
+  PRESENTATION_UPDATED
+  PRESENTATION_DELETED
+  PRESENTATION_SHARED
+  TEMPLATE_USED
+  AI_GENERATION_REQUESTED
+  AI_GENERATION_COMPLETED
+  USER_LOGIN
+  USER_LOGOUT
+  COLLABORATION_STARTED
+  COLLABORATION_ENDED
+  FILE_UPLOADED
+  SEARCH_PERFORMED
+  ERROR_OCCURRED
 }

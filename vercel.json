@@ -1,0 +1,36 @@
+{
+  "version": 2,
+  "name": "novagenai",
+  "builds": [
+    {
+      "src": "package.json",
+      "use": "@vercel/next"
+    }
+  ],
+  "routes": [
+    {
+      "src": "/api/(.*)",
+      "dest": "/api/$1"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "/$1"
+    }
+  ],
+  "env": {
+    "NEXTAUTH_URL": "@nextauth_url",
+    "NEXTAUTH_SECRET": "@nextauth_secret"
+  },
+  "build": {
+    "env": {
+      "NEXTAUTH_URL": "@nextauth_url"
+    }
+  },
+  "functions": {
+    "api/**/*.js": {
+      "maxDuration": 30
+    }
+  },
+  "regions": ["iad1"],
+  "framework": "nextjs"
+}

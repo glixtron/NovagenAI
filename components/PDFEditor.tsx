@@ -27,32 +27,41 @@ export default function PDFEditor() {
   const processPDF = async (file: File) => {
     setIsProcessing(true);
     try {
-      // Mock PDF processing - in real app, use PDF.js or similar library
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      
-      const mockPages: PDFPage[] = [
-        {
-          id: '1',
-          content: `Content from page 1 of ${file.name}\n\nThis is where the actual PDF content would be displayed and editable. In a real implementation, this would extract text from the PDF and make it editable.`,
-          pageNumber: 1
-        },
-        {
-          id: '2',
-          content: `Content from page 2 of ${file.name}\n\nSecond page content would appear here with full editing capabilities.`,
-          pageNumber: 2
-        }
-      ];
-      
-      setPages(mockPages);
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const response = await fetch('/api/pdf/extract', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to extract text from PDF');
+      }
+
+      const data = await response.json();
+
+      // Split content into mock pages for editing (since LibreOffice returns one text block)
+      const text = data.text || '';
+      const chunks = text.match(/[\s\S]{1,2000}/g) || [text];
+
+      const realPages: PDFPage[] = chunks.map((chunk, index) => ({
+        id: (index + 1).toString(),
+        content: chunk,
+        pageNumber: index + 1
+      }));
+
+      setPages(realPages);
     } catch (error) {
       console.error('Error processing PDF:', error);
+      alert('Failed to extract text. Please ensure the PDF is not password protected.');
     } finally {
       setIsProcessing(false);
     }
   };
 
   const updatePageContent = (pageId: string, content: string) => {
-    setPages(prev => prev.map(page => 
+    setPages(prev => prev.map(page =>
       page.id === pageId ? { ...page, content } : page
     ));
   };
@@ -74,7 +83,7 @@ export default function PDFEditor() {
       pageNumber: index + 1
     }));
     setPages(renumberedPages);
-    
+
     if (currentPage >= pages.length - 1) {
       setCurrentPage(Math.max(0, currentPage - 1));
     }
@@ -85,13 +94,13 @@ export default function PDFEditor() {
     try {
       // Mock PDF saving - in real app, use jsPDF or similar
       await new Promise(resolve => setTimeout(resolve, 1500));
-      
+
       const pdfContent = {
         fileName: selectedFile?.name || 'edited-document.pdf',
         pages: pages,
         savedAt: new Date().toISOString()
       };
-      
+
       const blob = new Blob([JSON.stringify(pdfContent, null, 2)], { type: 'application/json' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -162,7 +171,7 @@ export default function PDFEditor() {
                   <Plus className="w-4 h-4" />
                 </button>
               </div>
-              
+
               {isProcessing ? (
                 <div className="text-center py-8">
                   <div className="w-6 h-6 border-2 border-cyan-500 border-t-transparent rounded-full animate-spin mx-auto mb-3"></div>
@@ -174,11 +183,10 @@ export default function PDFEditor() {
                     <button
                       key={page.id}
                       onClick={() => setCurrentPage(index)}
-                      className={`w-full text-left p-3 rounded-lg border-2 transition-colors ${
-                        currentPage === index
+                      className={`w-full text-left p-3 rounded-lg border-2 transition-colors ${currentPage === index
                           ? 'border-cyan-500 bg-cyan-50'
                           : 'border-gray-300 bg-white hover:border-gray-400'
-                      }`}
+                        }`}
                     >
                       <div className="flex justify-between items-center">
                         <div className="flex items-center gap-2">
@@ -259,7 +267,7 @@ export default function PDFEditor() {
                     placeholder="Enter page content..."
                   />
                 </div>
-                
+
                 {/* Preview Mode Toggle */}
                 <div className="border-t pt-4">
                   <div className="flex items-center gap-2 mb-3">

@@ -820,7 +820,7 @@ export class PPTGeneratorService {
           id: presentation.presentation_id,
           title: `Presentation ${presentation.presentation_id}`,
           userId: 'system', // Would get from auth context
-          data: presentation,
+          data: presentation as any,
           createdAt: new Date(),
           updatedAt: new Date(),
         },
@@ -835,7 +835,7 @@ export class PPTGeneratorService {
       await this.prisma.presentation.update({
         where: { id: presentationId },
         data: {
-          data: presentation,
+          data: presentation as any,
           updatedAt: new Date(),
         },
       });
@@ -862,21 +862,94 @@ export class PPTGeneratorService {
   }
 
   private async createHTMLContent(slides: SlideData[], request: PPTGenerationRequest): Promise<string> {
-    const slidesHTML = slides.map((slide, index) => `
-      <div class="slide" data-slide="${index}">
-        <h2>${slide.title}</h2>
-        ${this.renderSlideElements(slide.content.elements)}
+    const slidesHTML = slides.map((slide, index) => {
+      const theme = slide.content.theme || {
+        colors: { primary: '#0ea5e9', secondary: '#64748b', background: '#ffffff', text: '#1e293b', accent: '#f43f5e' },
+        fonts: { heading: 'Inter, sans-serif', body: 'Inter, sans-serif', mono: 'JetBrains Mono, monospace' }
+      };
+
+      return `
+      <div class="slide" data-slide="${index}" style="background: ${theme.colors.background}; color: ${theme.colors.text};">
+        <div class="slide-content">
+          <h1 class="slide-title" style="color: ${theme.colors.primary}; font-family: ${theme.fonts.heading};">
+            ${slide.title}
+          </h1>
+          <div class="elements-container">
+            ${this.renderSlideElements(slide.content.elements, theme)}
+          </div>
+        </div>
+        ${slide.metadata.notes ? `<div class="speaker-notes">${slide.metadata.notes}</div>` : ''}
       </div>
-    `).join('');
+      `;
+    }).join('');
 
     return `
       <!DOCTYPE html>
       <html>
       <head>
+        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&family=JetBrains+Mono&display=swap" rel="stylesheet">
         <style>
-          body { font-family: Arial, sans-serif; margin: 0; padding: 20px; }
-          .slide { min-height: 600px; border: 1px solid #ccc; margin-bottom: 20px; padding: 20px; }
-          .element { margin: 10px 0; }
+          :root {
+            --primary: #0ea5e9;
+            --secondary: #64748b;
+            --text: #1e293b;
+            --bg: #ffffff;
+          }
+          body { 
+            margin: 0; 
+            padding: 0; 
+            font-family: 'Inter', sans-serif; 
+            background: #f1f5f9;
+          }
+          .slide { 
+            width: 1920px; 
+            height: 1080px; 
+            margin: 0 auto 40px; 
+            position: relative; 
+            overflow: hidden;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+            background: white;
+            display: flex;
+            flex-direction: column;
+          }
+          .slide-content {
+            padding: 80px 120px;
+            flex: 1;
+            position: relative;
+          }
+          .slide-title {
+            font-size: 84px;
+            font-weight: 800;
+            margin-bottom: 60px;
+            letter-spacing: -0.025em;
+          }
+          .elements-container {
+            position: relative;
+            height: calc(100% - 150px);
+          }
+          .element {
+            transition: all 0.3s ease;
+          }
+          .element-text {
+            font-size: 42px;
+            line-height: 1.5;
+          }
+          .element-image {
+            border-radius: 24px;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+            object-fit: cover;
+          }
+          .speaker-notes {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: rgba(0,0,0,0.8);
+            color: white;
+            padding: 20px;
+            font-size: 18px;
+            display: none; /* Hide in final export */
+          }
         </style>
       </head>
       <body>
@@ -886,24 +959,31 @@ export class PPTGeneratorService {
     `;
   }
 
-  private renderSlideElements(elements: SlideElement[]): string {
+  private renderSlideElements(elements: SlideElement[], theme: ThemeConfig): string {
     return elements.map(element => {
       const style = `
         position: absolute;
-        left: ${element.position.x}px;
-        top: ${element.position.y}px;
-        width: ${element.position.width}px;
-        height: ${element.position.height}px;
-        ${element.style.background ? `background: ${element.style.background};` : ''}
-        ${element.style.border ? `border: ${element.style.border};` : ''}
-        ${element.style.borderRadius ? `border-radius: ${element.style.borderRadius}px;` : ''}
+        left: ${element.position.x}%; 
+        top: ${element.position.y}%;
+        width: ${element.position.width}%;
+        height: ${element.position.height}%;
+        ${element.style?.background ? `background: ${element.style.background};` : ''}
+        ${element.style?.border ? `border: ${element.style.border};` : ''}
+        ${element.style?.borderRadius ? `border-radius: ${element.style.borderRadius}px;` : ''}
+        z-index: ${element.style?.zIndex || 1};
       `;
 
       switch (element.type) {
         case 'text':
-          return `<div class="element" style="${style}">${element.content.text}</div>`;
+          return `
+            <div class="element element-text" style="${style} font-family: ${theme.fonts.body};">
+              ${element.content.text}
+            </div>`;
         case 'image':
-          return `<img class="element" src="${element.content.url}" style="${style}" />`;
+          return `
+            <div class="element" style="${style}">
+              <img class="element-image" src="${element.content.url}" style="width:100%; height:100%;" />
+            </div>`;
         default:
           return `<div class="element" style="${style}">${element.type}</div>`;
       }
@@ -954,7 +1034,7 @@ export class PPTGeneratorService {
         title: p.title,
         created_at: p.createdAt,
         updated_at: p.updatedAt,
-        file_count: Object.keys(p.data?.files || {}).length,
+        file_count: Object.keys((p.data as any)?.files || {}).length,
       }));
     } catch (error) {
       console.error('Get presentation list error:', error);

@@ -131,7 +131,7 @@ export default function SlidesGenerator() {
   const [includeTransitions, setIncludeTransitions] = useState(true);
   const [exportFormat, setExportFormat] = useState<'pptx' | 'pdf' | 'html' | 'video'>('pptx');
   const fileInputRef = useRef<HTMLInputElement>(null);
-  
+
   // Advanced state management
   const [config, setConfig] = useState<PresentationConfig>({
     topic: '',
@@ -177,17 +177,17 @@ export default function SlidesGenerator() {
   // Initialize AI clients with error handling
   let genAI: GoogleGenerativeAI | null = null;
   let groq: Groq | null = null;
-  
+
   try {
     if (typeof window !== 'undefined') {
       // Client-side only
       const geminiKey = process.env.NEXT_PUBLIC_GEMINI_API_KEY;
       const groqKey = process.env.NEXT_PUBLIC_GROQ_API_KEY;
-      
+
       if (geminiKey && geminiKey !== 'undefined' && geminiKey !== '') {
         genAI = new GoogleGenerativeAI(geminiKey);
       }
-      
+
       if (groqKey && groqKey !== 'undefined' && groqKey !== '') {
         groq = new Groq({ apiKey: groqKey });
       }
@@ -202,9 +202,9 @@ export default function SlidesGenerator() {
       if (!genAI) {
         throw new Error('Gemini AI not initialized');
       }
-      
+
       const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
-      
+
       const systemPrompt = `Act as a Senior Data Analyst and Presentation Expert. Generate a structured JSON object for a professional presentation slide about "${topic}".
 
 Requirements:
@@ -233,19 +233,19 @@ Return format (strict JSON):
       const result = await model.generateContent(systemPrompt);
       const response = await result.response;
       const text = response.text();
-      
+
       // Parse JSON response
       const jsonMatch = text.match(/\{[\s\S]*\}/);
       if (jsonMatch) {
         return JSON.parse(jsonMatch[0]);
       }
-      
+
       // Fallback if JSON parsing fails
       throw new Error('Failed to parse Gemini response');
-      
+
     } catch (error) {
       console.error('Error generating analytical content with Gemini:', error);
-      
+
       // Enhanced fallback with more realistic data
       const growthMetrics = [
         `${Math.floor(Math.random() * 30 + 10)}% year-over-year growth`,
@@ -254,7 +254,7 @@ Return format (strict JSON):
         `${Math.floor(Math.random() * 40 + 60)}% market share increase`,
         `${Math.floor(Math.random() * 25 + 15)}% operational efficiency gain`
       ];
-      
+
       return {
         title: `${topic}: ${slideType === 'title' ? 'Executive Summary' : slideType === 'conclusion' ? 'Strategic Outlook' : 'Performance Analysis'}`,
         bullets: [
@@ -281,10 +281,10 @@ Return format (strict JSON):
   // Enhanced image generation using Groq for prompt enhancement and Pollinations for image creation
   const generateImage = async (prompt: string, style: string, retryCount = 0): Promise<string> => {
     const maxRetries = 3;
-    
+
     try {
       let enhancedPrompt = prompt;
-      
+
       // Use Groq to enhance the image prompt if available
       if (groq) {
         const groqPrompt = `Create a detailed, professional image prompt for a business presentation slide based on this topic: "${prompt}". 
@@ -308,12 +308,12 @@ Return format (strict JSON):
 
         enhancedPrompt = groqResponse.choices[0]?.message?.content || prompt;
       }
-      
+
       const finalPrompt = `${enhancedPrompt}, professional business presentation, high quality, 8k resolution, corporate design, data visualization, analytical chart, business metrics`;
-      
+
       // Generate image using Pollinations with the enhanced prompt
       const imageUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(finalPrompt)}`;
-      
+
       // Test if the URL is valid
       const response = await fetch(imageUrl, { method: 'HEAD' });
       if (!response.ok && retryCount < maxRetries) {
@@ -321,16 +321,16 @@ Return format (strict JSON):
         await new Promise(resolve => setTimeout(resolve, Math.pow(2, retryCount) * 1000));
         return generateImage(prompt, style, retryCount + 1);
       }
-      
+
       return imageUrl;
     } catch (error) {
       console.error(`Error generating image with Groq (attempt ${retryCount + 1}):`, error);
-      
+
       if (retryCount < maxRetries) {
         await new Promise(resolve => setTimeout(resolve, Math.pow(2, retryCount) * 1000));
         return generateImage(prompt, style, retryCount + 1);
       }
-      
+
       // Professional fallback images based on style and topic
       const fallbackImages = [
         'https://images.unsplash.com/photo-1557804506-669a67965ba0?w=800&h=600&fit=crop&auto=format',
@@ -340,7 +340,7 @@ Return format (strict JSON):
         'https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=800&h=600&fit=crop&auto=format',
         'https://images.unsplash.com/photo-1504868784831-60561436208d?w=800&h=600&fit=crop&auto=format'
       ];
-      
+
       return fallbackImages[Math.floor(Math.random() * fallbackImages.length)];
     }
   };
@@ -352,9 +352,9 @@ Return format (strict JSON):
 
     const imagePrompt = `${slide.title}, ${slide.content.substring(0, 100)}...`;
     const imageUrl = await generateImage(imagePrompt, config.imageStyle);
-    
-    setSlides(prev => prev.map(s => 
-      s.id === slideId 
+
+    setSlides(prev => prev.map(s =>
+      s.id === slideId
         ? { ...s, imageUrl, imagePrompt }
         : s
     ));
@@ -388,23 +388,23 @@ Return format (strict JSON):
 
   const generateSlides = async () => {
     if (!config.topic.trim()) return;
-    
+
     setIsGenerating(true);
     try {
       // Enhanced AI generation with analytical content
       await new Promise(resolve => setTimeout(resolve, 3000));
-      
+
       const generatedSlides: Slide[] = [];
-      
+
       // Generate slides with real analytical data
       for (let i = 0; i < Math.min(config.length, 50); i++) {
         let slideType = i === 0 ? 'title' : i === config.length - 1 ? 'conclusion' : i % 2 === 0 ? 'data' : 'content';
-        
+
         // Get analytical content for this slide
         const analyticalData = await generateAnalyticalContent(config.topic, slideType, config);
-        
+
         if (!analyticalData) continue;
-        
+
         const slide: Slide = {
           id: `slide-${i + 1}`,
           title: analyticalData.title,
@@ -426,7 +426,7 @@ Return format (strict JSON):
             accessibilityScore: accessibilityMode ? 95 : 85
           }
         };
-        
+
         // Add real chart data for data slides
         if (slideType === 'data' && analyticalData.chartData) {
           slide.charts = [{
@@ -438,7 +438,7 @@ Return format (strict JSON):
             interactive: true
           }];
         }
-        
+
         // Add professional images for content slides using Gemini-generated prompts
         if (slideType === 'content' && includeImages) {
           slide.images = [{
@@ -449,10 +449,10 @@ Return format (strict JSON):
             filter: 'none'
           }];
         }
-        
+
         generatedSlides.push(slide);
       }
-      
+
       setSlides(generatedSlides);
       setCurrentSlide(0);
     } catch (error) {
@@ -469,17 +469,17 @@ Return format (strict JSON):
       content: 'Click to edit this slide content...',
       speakerNotes: 'Add speaker notes here...'
     };
-    
+
     setSlides([...slides, newSlide]);
     setCurrentSlide(slides.length);
   };
 
   const deleteSlide = (slideId: string) => {
     if (slides.length <= 1) return;
-    
+
     const newSlides = slides.filter(slide => slide.id !== slideId);
     setSlides(newSlides);
-    
+
     if (currentSlide >= newSlides.length) {
       setCurrentSlide(newSlides.length - 1);
     }
@@ -488,13 +488,13 @@ Return format (strict JSON):
   const duplicateSlide = (slideId: string) => {
     const slideToDuplicate = slides.find(s => s.id === slideId);
     if (!slideToDuplicate) return;
-    
+
     const duplicatedSlide: Slide = {
       ...slideToDuplicate,
       id: `slide-${slides.length + 1}`,
       title: `${slideToDuplicate.title} (Copy)`
     };
-    
+
     const newSlides = [...slides];
     newSlides.splice(currentSlide + 1, 0, duplicatedSlide);
     setSlides(newSlides);
@@ -502,7 +502,7 @@ Return format (strict JSON):
   };
 
   const updateSlide = (slideId: string, updates: Partial<Slide>) => {
-    setSlides(slides.map(slide => 
+    setSlides(slides.map(slide =>
       slide.id === slideId ? { ...slide, ...updates } : slide
     ));
   };
@@ -519,7 +519,7 @@ Return format (strict JSON):
       length: config.length,
       enableAnimations: config.enableAnimations
     };
-    
+
     exportToPPTX(presentationData);
   };
 
@@ -529,7 +529,7 @@ Return format (strict JSON):
       text: `Check out my presentation on ${config.topic} with ${slides.length} slides!`,
       url: window.location.href
     };
-    
+
     try {
       if (navigator.share) {
         await navigator.share(shareData);
@@ -572,7 +572,7 @@ Return format (strict JSON):
         {/* Header */}
         <div className="mb-10 text-center">
           <h1 className="text-5xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent mb-4">
-            NovagenAI SlideCraft Pro
+            NovagenAI PPT Pro
           </h1>
           <p className="text-xl text-gray-600 max-w-3xl mx-auto">
             Generate data-driven, analytical presentations with AI-powered insights and professional visuals
@@ -590,13 +590,13 @@ Return format (strict JSON):
               <input
                 type="text"
                 value={config.topic}
-                onChange={(e) => setConfig({...config, topic: e.target.value})}
+                onChange={(e) => setConfig({ ...config, topic: e.target.value })}
                 placeholder="e.g., Q4 Financial Performance Analysis, Market Growth Strategy..."
                 className="w-full px-6 py-4 bg-white/50 backdrop-blur-sm border border-gray-200/50 rounded-2xl focus:outline-none focus:ring-4 focus:ring-blue-500/20 focus:border-blue-500 transition-all text-lg font-medium"
                 disabled={isGenerating}
               />
             </div>
-            
+
             {/* Slide Count */}
             <div>
               <label className="block text-sm font-semibold text-gray-800 mb-3 uppercase tracking-wide">
@@ -607,7 +607,7 @@ Return format (strict JSON):
                 min="5"
                 max="50"
                 value={config.length}
-                onChange={(e) => setConfig({...config, length: parseInt(e.target.value) || 10})}
+                onChange={(e) => setConfig({ ...config, length: parseInt(e.target.value) || 10 })}
                 className="w-full h-3 bg-gradient-to-r from-blue-200 to-indigo-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
               />
               <div className="flex justify-between text-xs text-gray-500 mt-2">
@@ -622,9 +622,9 @@ Return format (strict JSON):
             {/* Audience */}
             <div className="bg-gradient-to-br from-blue-50/50 to-indigo-50/50 backdrop-blur-sm rounded-2xl p-4 border border-white/30">
               <label className="block text-sm font-semibold text-gray-800 mb-2">Audience</label>
-              <select 
-                value={config.audience} 
-                onChange={(e) => setConfig({...config, audience: e.target.value as any})}
+              <select
+                value={config.audience}
+                onChange={(e) => setConfig({ ...config, audience: e.target.value as any })}
                 className="w-full px-4 py-3 bg-white/70 backdrop-blur-sm border border-gray-200/50 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20"
               >
                 <option value="general">General Audience</option>
@@ -638,9 +638,9 @@ Return format (strict JSON):
             {/* Tone */}
             <div className="bg-gradient-to-br from-purple-50/50 to-pink-50/50 backdrop-blur-sm rounded-2xl p-4 border border-white/30">
               <label className="block text-sm font-semibold text-gray-800 mb-2">Tone</label>
-              <select 
-                value={config.tone} 
-                onChange={(e) => setConfig({...config, tone: e.target.value as any})}
+              <select
+                value={config.tone}
+                onChange={(e) => setConfig({ ...config, tone: e.target.value as any })}
                 className="w-full px-4 py-3 bg-white/70 backdrop-blur-sm border border-gray-200/50 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500/20"
               >
                 <option value="formal">Professional</option>
@@ -654,9 +654,9 @@ Return format (strict JSON):
             {/* Image Style */}
             <div className="bg-gradient-to-br from-green-50/50 to-emerald-50/50 backdrop-blur-sm rounded-2xl p-4 border border-white/30">
               <label className="block text-sm font-semibold text-gray-800 mb-2">Image Style</label>
-              <select 
-                value={config.imageStyle} 
-                onChange={(e) => setConfig({...config, imageStyle: e.target.value})}
+              <select
+                value={config.imageStyle}
+                onChange={(e) => setConfig({ ...config, imageStyle: e.target.value })}
                 className="w-full px-4 py-3 bg-white/70 backdrop-blur-sm border border-gray-200/50 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500/20"
               >
                 {IMAGE_STYLES.map(style => <option key={style}>{style}</option>)}
@@ -666,9 +666,9 @@ Return format (strict JSON):
             {/* Aspect Ratio */}
             <div className="bg-gradient-to-br from-orange-50/50 to-amber-50/50 backdrop-blur-sm rounded-2xl p-4 border border-white/30">
               <label className="block text-sm font-semibold text-gray-800 mb-2">Aspect Ratio</label>
-              <select 
-                value={config.aspectRatio} 
-                onChange={(e) => setConfig({...config, aspectRatio: e.target.value})}
+              <select
+                value={config.aspectRatio}
+                onChange={(e) => setConfig({ ...config, aspectRatio: e.target.value })}
                 className="w-full px-4 py-3 bg-white/70 backdrop-blur-sm border border-gray-200/50 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-500/20"
               >
                 {ASPECT_RATIOS.map(ratio => <option key={ratio}>{ratio}</option>)}
@@ -686,12 +686,11 @@ Return format (strict JSON):
                 <button
                   key={theme.id}
                   type="button"
-                  onClick={() => setConfig({...config, theme: theme.id})}
-                  className={`relative p-4 rounded-2xl border-2 transition-all backdrop-blur-sm ${
-                    config.theme === theme.id 
-                      ? 'border-blue-500 bg-blue-50/50 shadow-lg shadow-blue-500/20' 
+                  onClick={() => setConfig({ ...config, theme: theme.id })}
+                  className={`relative p-4 rounded-2xl border-2 transition-all backdrop-blur-sm ${config.theme === theme.id
+                      ? 'border-blue-500 bg-blue-50/50 shadow-lg shadow-blue-500/20'
                       : 'border-gray-200/50 bg-white/30 hover:bg-white/50'
-                  }`}
+                    }`}
                 >
                   <div className={`w-full h-12 rounded-xl shadow-sm ${theme.color} mb-3`}></div>
                   <span className="text-sm font-medium">{theme.name}</span>
@@ -743,7 +742,7 @@ Return format (strict JSON):
               <input
                 type="checkbox"
                 checked={config.enableAnimations}
-                onChange={(e) => setConfig({...config, enableAnimations: e.target.checked})}
+                onChange={(e) => setConfig({ ...config, enableAnimations: e.target.checked })}
                 className="mr-3 w-5 h-5 text-orange-600 rounded focus:ring-orange-500"
                 disabled={isGenerating}
               />
@@ -801,11 +800,10 @@ Return format (strict JSON):
                   <button
                     key={slide.id}
                     onClick={() => setCurrentSlide(index)}
-                    className={`px-4 py-2 rounded-xl text-sm font-medium transition-all ${
-                      currentSlide === index
+                    className={`px-4 py-2 rounded-xl text-sm font-medium transition-all ${currentSlide === index
                         ? 'bg-blue-500 text-white shadow-lg'
                         : 'bg-white/50 text-gray-700 hover:bg-white/70'
-                    }`}
+                      }`}
                   >
                     Slide {index + 1}
                   </button>

@@ -154,6 +154,39 @@ export class FileConverterService {
       throw new Error(`Document conversion failed: ${error}`);
     }
   }
+
+  /**
+   * Extract text from a document using LibreOffice
+   */
+  async extractText(inputPath: string): Promise<string> {
+    if (!fs.existsSync(inputPath)) {
+      throw new Error(`Input file not found: ${inputPath}`);
+    }
+
+    const outputDir = path.dirname(inputPath);
+    const fileName = path.basename(inputPath, path.extname(inputPath));
+    const txtOutputPath = path.join(outputDir, `${fileName}.txt`);
+
+    // Sanitize input
+    const safeInput = inputPath.replace(/["$`\\]/g, '');
+    const safeOutputDir = outputDir.replace(/["$`\\]/g, '');
+    const cmd = `soffice --headless --convert-to txt "${safeInput}" --outdir "${safeOutputDir}"`;
+
+    try {
+      await execAsync(cmd);
+
+      if (fs.existsSync(txtOutputPath)) {
+        const content = fs.readFileSync(txtOutputPath, 'utf8');
+        try { fs.unlinkSync(txtOutputPath); } catch { } // Clean up
+        return content;
+      } else {
+        throw new Error('Text extraction failed: Output file not created');
+      }
+    } catch (error) {
+      console.error('Text extraction error:', error);
+      throw new Error(`Failed to extract text: ${error}`);
+    }
+  }
 }
 
 export const fileConverterService = new FileConverterService();

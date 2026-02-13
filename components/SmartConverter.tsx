@@ -36,7 +36,7 @@ export default function SmartConverter() {
       if (extension) {
         setFromFormat(extension);
         // Auto-select a different format for conversion
-        const category = formatCategories.find(cat => 
+        const category = formatCategories.find(cat =>
           supportedFormats[cat].includes(extension)
         );
         if (category) {
@@ -63,29 +63,41 @@ export default function SmartConverter() {
     setIsConverting(true);
 
     try {
-      // Update status to processing
-      setConversions(prev => prev.map(job => 
-        job.id === conversionJob.id 
+      setConversions(prev => prev.map(job =>
+        job.id === conversionJob.id
           ? { ...job, status: 'processing' }
           : job
       ));
 
-      // Mock conversion process
-      await new Promise(resolve => setTimeout(resolve, 3000));
+      const formData = new FormData();
+      formData.append('file', selectedFile);
+      formData.append('format', toFormat.toLowerCase());
 
-      // Mock successful conversion
-      setConversions(prev => prev.map(job => 
-        job.id === conversionJob.id 
-          ? { 
-              ...job, 
-              status: 'completed',
-              downloadUrl: `converted-${Date.now()}.${toFormat.toLowerCase()}`
-            }
+      const response = await fetch('/api/convert', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!response.ok) {
+        throw new Error('Conversion failed');
+      }
+
+      const blob = await response.blob();
+      const downloadUrl = window.URL.createObjectURL(blob);
+
+      setConversions(prev => prev.map(job =>
+        job.id === conversionJob.id
+          ? {
+            ...job,
+            status: 'completed',
+            downloadUrl: downloadUrl
+          }
           : job
       ));
     } catch (error) {
-      setConversions(prev => prev.map(job => 
-        job.id === conversionJob.id 
+      console.error('Conversion error:', error);
+      setConversions(prev => prev.map(job =>
+        job.id === conversionJob.id
           ? { ...job, status: 'error' }
           : job
       ));
@@ -99,10 +111,11 @@ export default function SmartConverter() {
 
   const downloadConvertedFile = (job: ConversionJob) => {
     if (job.downloadUrl) {
-      // Mock download - in real app, this would download the actual converted file
       const a = document.createElement('a');
       a.href = job.downloadUrl;
-      a.download = job.fileName.replace(`.${job.fromFormat.toLowerCase()}`, `.${job.toFormat.toLowerCase()}`);
+      const extension = job.toFormat.toLowerCase();
+      const baseName = job.fileName.substring(0, job.fileName.lastIndexOf('.')) || job.fileName;
+      a.download = `${baseName}.${extension}`;
       a.click();
     }
   };

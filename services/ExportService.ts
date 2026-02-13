@@ -42,7 +42,7 @@ export class ExportService {
 
   constructor() {
     this.prisma = new PrismaClient();
-    
+
     this.redis = new Redis({
       host: process.env.REDIS_HOST || 'localhost',
       port: parseInt(process.env.REDIS_PORT || '6379'),
@@ -61,10 +61,10 @@ export class ExportService {
 
   async exportPresentation(request: ExportRequest): Promise<ExportResponse> {
     const startTime = Date.now();
-    
+
     try {
       // Get presentation data
-      const presentation = await this.prisma.presentation.findUnique({
+      const presentation = await (this.prisma.presentation as any).findUnique({
         where: { id: request.presentationId },
         include: {
           slides: {
@@ -87,42 +87,43 @@ export class ExportService {
         case 'pdf':
           exportResult = await this.exportToPDF(presentation, request);
           break;
-          
+
         case 'pptx':
           exportResult = await this.exportToPPTX(presentation, request);
           break;
-          
+
         case 'html':
           exportResult = await this.exportToHTML(presentation, request);
           break;
-          
+
         case 'json':
           exportResult = await this.exportToJSON(presentation, request);
           break;
-          
+
         case 'png':
           exportResult = await this.exportToPNG(presentation, request);
           break;
-          
+
         case 'svg':
           exportResult = await this.exportToSVG(presentation, request);
           break;
-          
+
         case 'mp4':
           exportResult = await this.exportToMP4(presentation, request);
           break;
-          
+
         case 'zip':
           exportResult = await this.exportToZIP(presentation, request);
           break;
-          
+
         default:
           throw new Error(`Unsupported export format: ${request.format}`);
       }
 
       // Update metadata
+      const anyPresentation = presentation as any;
       exportResult.metadata.processingTime = Date.now() - startTime;
-      exportResult.metadata.slidesExported = presentation.slides.length;
+      exportResult.metadata.slidesExported = anyPresentation.slides?.length || 0;
       exportResult.metadata.quality = request.options.quality;
       exportResult.metadata.timestamp = new Date().toISOString();
 
@@ -140,10 +141,10 @@ export class ExportService {
     // Generate HTML first, then convert to PDF
     const htmlContent = await this.generateHTMLContent(presentation, request);
     const pdfBuffer = await this.convertHTMLToPDF(htmlContent, request);
-    
+
     const filename = `${presentation.title}-export.pdf`;
     const url = await this.uploadToS3(pdfBuffer, filename, 'application/pdf');
-    
+
     return {
       downloadUrl: url,
       format: 'pdf',
@@ -161,10 +162,10 @@ export class ExportService {
   private async exportToPPTX(presentation: any, request: ExportRequest): Promise<ExportResponse> {
     // Generate PPTX structure
     const pptxContent = await this.generatePPTXContent(presentation, request);
-    
+
     const filename = `${presentation.title}-export.pptx`;
     const url = await this.uploadToS3(pptxContent, filename, 'application/vnd.openxmlformats-officedocument.presentationml.presentation');
-    
+
     return {
       downloadUrl: url,
       format: 'pptx',
@@ -181,10 +182,10 @@ export class ExportService {
 
   private async exportToHTML(presentation: any, request: ExportRequest): Promise<ExportResponse> {
     const htmlContent = await this.generateHTMLContent(presentation, request);
-    
+
     const filename = `${presentation.title}-export.html`;
     const url = await this.uploadToS3(htmlContent, filename, 'text/html');
-    
+
     return {
       downloadUrl: url,
       format: 'html',
@@ -221,10 +222,10 @@ export class ExportService {
       exportOptions: request.options,
       exportedAt: new Date().toISOString()
     }, null, 2);
-    
+
     const filename = `${presentation.title}-export.json`;
     const url = await this.uploadToS3(jsonContent, filename, 'application/json');
-    
+
     return {
       downloadUrl: url,
       format: 'json',
@@ -254,7 +255,7 @@ export class ExportService {
     const zipBuffer = await this.createZip(slideImages);
     const filename = `${presentation.title}-export-images.zip`;
     const url = await this.uploadToS3(zipBuffer, filename, 'application/zip');
-    
+
     return {
       downloadUrl: url,
       format: 'png',
@@ -284,7 +285,7 @@ export class ExportService {
     const zipBuffer = await this.createZipFromText(slideSVGs);
     const filename = `${presentation.title}-export-svgs.zip`;
     const url = await this.uploadToS3(zipBuffer, filename, 'application/zip');
-    
+
     return {
       downloadUrl: url,
       format: 'svg',
@@ -302,10 +303,10 @@ export class ExportService {
   private async exportToMP4(presentation: any, request: ExportRequest): Promise<ExportResponse> {
     // Generate video from presentation
     const videoBuffer = await this.convertPresentationToVideo(presentation, request);
-    
+
     const filename = `${presentation.title}-export.mp4`;
     const url = await this.uploadToS3(videoBuffer, filename, 'video/mp4');
-    
+
     return {
       downloadUrl: url,
       format: 'mp4',
@@ -323,15 +324,15 @@ export class ExportService {
   private async exportToZIP(presentation: any, request: ExportRequest): Promise<ExportResponse> {
     // Create a comprehensive zip with all formats
     const files: Array<{ filename: string; content?: string; buffer?: Buffer }> = [];
-    
+
     // Add JSON
     const jsonContent = JSON.stringify(presentation, null, 2);
     files.push({ filename: 'presentation.json', content: jsonContent });
-    
+
     // Add HTML
     const htmlContent = await this.generateHTMLContent(presentation, request);
     files.push({ filename: 'presentation.html', content: htmlContent });
-    
+
     // Add slide images
     for (let i = 0; i < presentation.slides.length; i++) {
       const slide = presentation.slides[i];
@@ -342,7 +343,7 @@ export class ExportService {
     const zipBuffer = await this.createZip(files);
     const filename = `${presentation.title}-complete-export.zip`;
     const url = await this.uploadToS3(zipBuffer, filename, 'application/zip');
-    
+
     return {
       downloadUrl: url,
       format: 'zip',
@@ -522,7 +523,7 @@ export class ExportService {
       switch (element.type) {
         case 'text':
           return `<div class="element text">${element.content.text || element.content}</div>`;
-          
+
         case 'image':
           return `
             <div class="element image">
@@ -530,7 +531,7 @@ export class ExportService {
               ${element.content.caption ? `<p style="text-align: center; margin-top: 10px; font-style: italic; color: #666;">${element.content.caption}</p>` : ''}
             </div>
           `;
-          
+
         case 'shape':
           return `
             <div class="element shape" style="
@@ -542,7 +543,7 @@ export class ExportService {
               margin: 20px auto;
             "></div>
           `;
-          
+
         case 'chart':
           return `
             <div class="element chart">
@@ -551,7 +552,7 @@ export class ExportService {
               </div>
             </div>
           `;
-          
+
         default:
           return `<div class="element">Unknown element type: ${element.type}</div>`;
       }
@@ -569,7 +570,7 @@ export class ExportService {
         elements: slide.elements
       }))
     };
-    
+
     return Buffer.from(JSON.stringify(pptxStructure, null, 2));
   }
 
@@ -592,11 +593,11 @@ export class ExportService {
         <rect width="1920" height="1080" fill="#ffffff"/>
         <text x="100" y="100" font-family="Arial" font-size="48" fill="#333333">${slide.title}</text>
         ${slide.elements.map((element: any, index: number) => {
-          if (element.type === 'text') {
-            return `<text x="100" y="${200 + index * 60}" font-family="Arial" font-size="24" fill="#555555">${element.content.text || element.content}</text>`;
-          }
-          return '';
-        }).join('')}
+      if (element.type === 'text') {
+        return `<text x="100" y="${200 + index * 60}" font-family="Arial" font-size="24" fill="#555555">${element.content.text || element.content}</text>`;
+      }
+      return '';
+    }).join('')}
       </svg>
     `;
   }
@@ -630,7 +631,7 @@ export class ExportService {
       });
 
       await this.s3Client.send(command);
-      
+
       return `https://${process.env.AWS_S3_BUCKET}.s3.${process.env.AWS_REGION || 'us-east-1'}.amazonaws.com/exports/${Date.now()}-${filename}`;
     } catch (error) {
       console.error('S3 upload error:', error);
@@ -640,7 +641,7 @@ export class ExportService {
 
   private async logExport(request: ExportRequest, response: ExportResponse): Promise<void> {
     try {
-      await this.prisma.export.create({
+      await (this.prisma as any).export.create({
         data: {
           presentationId: request.presentationId,
           format: request.format,
@@ -659,7 +660,7 @@ export class ExportService {
 
   async getExportHistory(presentationId: string): Promise<any[]> {
     try {
-      return await this.prisma.export.findMany({
+      return await (this.prisma as any).export.findMany({
         where: { presentationId },
         orderBy: { createdAt: 'desc' },
         take: 50
@@ -672,7 +673,7 @@ export class ExportService {
 
   async deleteExpiredExports(): Promise<void> {
     try {
-      const expiredExports = await this.prisma.export.findMany({
+      const expiredExports = await (this.prisma as any).export.findMany({
         where: {
           expiresAt: {
             lt: new Date()
@@ -683,9 +684,9 @@ export class ExportService {
       for (const exportRecord of expiredExports) {
         // Delete from S3
         // This would involve parsing the URL and deleting the object
-        
+
         // Delete from database
-        await this.prisma.export.delete({
+        await (this.prisma as any).export.delete({
           where: { id: exportRecord.id }
         });
       }

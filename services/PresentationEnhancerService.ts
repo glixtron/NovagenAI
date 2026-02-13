@@ -147,38 +147,37 @@ export class PresentationEnhancerService {
      * Smart Formatting Logic
      */
     private smartFormat(slide: any): any {
-        const textContent = this.extractTextFromSlide(slide);
-        const wordCount = textContent.split(' ').length;
+        const textContent = this.extractTextFromSlide(slide).toLowerCase();
+        const wordCount = textContent.split(/\s+/).length;
         const titleLength = slide.title ? slide.title.length : 0;
 
         let layoutId = 'default';
 
-        // Heuristics
-        if (wordCount > 150) {
-            layoutId = 'two-column-text';
-        } else if (wordCount < 20 && titleLength < 50) {
-            layoutId = 'centered-headline';
+        // Advanced Layout Heuristics
+        if (wordCount < 15 && titleLength < 40) {
+            layoutId = 'hero-centered'; // Big headline, minimal text
+        } else if (textContent.includes('%') || textContent.includes('ratio') || textContent.includes('increase')) {
+            layoutId = 'metric-focus'; // Highlight numbers
+        } else if (wordCount > 100) {
+            layoutId = 'content-rich-split'; // Two columns for lots of text
         } else if (textContent.includes('\u2022') || (Array.isArray(slide.content) && slide.content.length > 5)) {
-            // \u2022 is bullet point
-            layoutId = 'grid-points';
+            layoutId = 'grid-points'; // Bullet points
+        } else if (textContent.includes('step') || textContent.includes('process')) {
+            layoutId = 'process-timeline'; // Step-by-step
         }
 
         // Apply Layout
         if (slide.content && slide.content.layout) {
-            // Complex structure: slide.content.layout
-            // If it's an object, update template
             if (typeof slide.content.layout === 'object') {
                 slide.content.layout.template = layoutId;
             }
         } else if (slide.layout) {
-            // Simple structure
             if (typeof slide.layout === 'string') {
                 slide.layout = layoutId;
             } else if (typeof slide.layout === 'object') {
                 slide.layout.templateId = layoutId;
             }
         } else {
-            // Create if missing (simple)
             slide.layout = { templateId: layoutId };
         }
 

@@ -23,6 +23,40 @@ export interface ContentGenerationResponse {
   suggestions?: string[];
 }
 
+export class PromptLibrary {
+  static getSystemPrompt(format: string, tone: string, audience: string, language: string): string {
+    const base = `You are NovagenAI, an elite AI content engineer specializing in high-end ${format} production. 
+    Your mission is to generate world-class, premium ${format} content that is perfectly tailored for a ${audience} audience.
+    
+    TONE AND STYLE: Use a ${tone} tone. Ensure the output is elegant, authoritative, and compelling. 
+    Avoid generic AI phrasing. Use sophisticated vocabulary and clear, impactful structure.
+    
+    LANGUAGE: Generate all content in ${language}.
+    
+    PERSONALIZATION: Adapt the style to be "minimalist yet powerful", focusing on high information density and aesthetic clarity.`;
+
+    const formatSpecific = {
+      presentation: `Focus on visual hierarchy. Use strong headlines, concise bullet points, and impactful summaries. Highlight key takeaways and ensure a logical story flow.`,
+      article: `Use compelling hooks, clear transitions, and deep analytical insights. Structure with H2/H3 headers for readability.`,
+      report: `Focus on data clarity, executive summaries, and actionable recommendations. Use professional business jargon where appropriate.`,
+      email: `Be concise, direct, and persuasive. Use clear call-to-actions and professional sign-offs.`
+    }[format] || '';
+
+    return `${base}\n\n${formatSpecific}`;
+  }
+
+  static engineerPrompt(prompt: string): string {
+    return `USER REQUEST: ${prompt}
+    
+    REFINEMENT INSTRUCTIONS:
+    1. Analyze the core intent of the user.
+    2. Expand on the details if they are brief, but remain focused.
+    3. If the user wants to generate something, provide a multi-layered response with reasoning, content, and next-step recommendations.
+    4. Ensure the output feels like it was crafted by a top-tier human specialist.
+    5. Use Markdown for elegant formatting.`;
+  }
+}
+
 export class ContentGenerationService {
   private openai: OpenAI;
   private genAI: GoogleGenerativeAI;
@@ -121,16 +155,19 @@ export class ContentGenerationService {
   }
 
   private async generateWithGPT4(request: ContentGenerationRequest): Promise<ContentGenerationResponse> {
+    const systemPrompt = PromptLibrary.getSystemPrompt(request.format, request.tone, request.audience, request.language);
+    const engineeredPrompt = PromptLibrary.engineerPrompt(request.prompt);
+
     const completion = await this.openai.chat.completions.create({
       model: 'gpt-4',
       messages: [
         {
           role: 'system',
-          content: `You are a professional content generator. Generate ${request.format} content with a ${request.tone} tone for a ${request.audience} audience. The content should be in ${request.language}. Context: ${request.context || 'No additional context provided'}. Maximum length: ${request.maxLength || 'unlimited'} words.`
+          content: systemPrompt
         },
         {
           role: 'user',
-          content: request.prompt
+          content: (request.context ? `CONTEXT: ${request.context}\n\n` : '') + engineeredPrompt
         }
       ],
       max_tokens: request.maxLength ? Math.ceil(request.maxLength * 1.5) : undefined,
@@ -150,6 +187,9 @@ export class ContentGenerationService {
   }
 
   private async generateWithClaude(request: ContentGenerationRequest): Promise<ContentGenerationResponse> {
+    const systemPrompt = PromptLibrary.getSystemPrompt(request.format, request.tone, request.audience, request.language);
+    const engineeredPrompt = PromptLibrary.engineerPrompt(request.prompt);
+
     const response = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {
@@ -163,11 +203,11 @@ export class ContentGenerationService {
         messages: [
           {
             role: 'system',
-            content: `You are a professional content generator. Generate ${request.format} content with a ${request.tone} tone for a ${request.audience} audience. The content should be in ${request.language}. Context: ${request.context || 'No additional context provided'}. Maximum length: ${request.maxLength || 'unlimited'} words.`
+            content: systemPrompt
           },
           {
             role: 'user',
-            content: request.prompt
+            content: (request.context ? `CONTEXT: ${request.context}\n\n` : '') + engineeredPrompt
           }
         ]
       })
@@ -189,9 +229,10 @@ export class ContentGenerationService {
   private async generateWithGemini(request: ContentGenerationRequest): Promise<ContentGenerationResponse> {
     const model = this.genAI.getGenerativeModel({ model: 'gemini-1.5-pro' });
 
-    const systemPrompt = `You are a professional content generator. Generate ${request.format} content with a ${request.tone} tone for a ${request.audience} audience. The content should be in ${request.language}. Context: ${request.context || 'No additional context provided'}. Maximum length: ${request.maxLength || 'unlimited'} words.`;
+    const systemPrompt = PromptLibrary.getSystemPrompt(request.format, request.tone, request.audience, request.language);
+    const engineeredPrompt = PromptLibrary.engineerPrompt(request.prompt);
 
-    const result = await model.generateContent(systemPrompt + request.prompt);
+    const result = await model.generateContent(systemPrompt + "\n\n" + (request.context ? `CONTEXT: ${request.context}\n\n` : '') + engineeredPrompt);
     const content = result.response.text() || '';
 
     return {

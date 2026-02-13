@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef } from 'react';
-import { FileText, Plus, Download, Image as ImageIcon, Trash2, Save, Upload, BarChart3, TrendingUp, Package, Tag, Eye, Share2, Copy, Filter, Search, Grid, List } from 'lucide-react';
+import { FileText, Plus, Download, Image as ImageIcon, Trash2, Save, Upload, BarChart3, TrendingUp, Package, Tag, Eye, Share2, Copy, Filter, Search, Grid, List, Wand2 } from 'lucide-react';
 
 interface Product {
   id: string;
@@ -60,12 +60,12 @@ export default function CatalogueCreator() {
 
   const generateProduct = async () => {
     if (!currentProduct.name.trim()) return;
-    
+
     setIsGenerating(true);
     try {
       // Enhanced AI generation with multiple product aspects
       await new Promise(resolve => setTimeout(resolve, 2000));
-      
+
       const newProduct: Product = {
         ...currentProduct,
         id: Date.now().toString(),
@@ -89,7 +89,7 @@ export default function CatalogueCreator() {
         sku: `${currentProduct.category.substring(0, 3).toUpperCase()}-${Date.now().toString().slice(-6)}`,
         brand: 'NovagenAI Premium'
       };
-      
+
       setProducts([...products, newProduct]);
       setCurrentProduct({
         id: '',
@@ -125,6 +125,35 @@ export default function CatalogueCreator() {
     }
   };
 
+  const downloadCatalogueAsPDF = async () => {
+    const { default: jsPDF } = await import('jspdf');
+    const { default: html2canvas } = await import('html2canvas');
+
+    const element = document.getElementById('catalogue-products-list');
+    if (!element) return;
+
+    setIsGenerating(true);
+    try {
+      const canvas = await html2canvas(element, {
+        scale: 2,
+        useCORS: true,
+        logging: false
+      });
+      const imgData = canvas.toDataURL('image/png');
+      const pdf = new jsPDF('p', 'mm', 'a4');
+      const imgProps = pdf.getImageProperties(imgData);
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+
+      pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+      pdf.save('novagenai-catalogue.pdf');
+    } catch (error) {
+      console.error('Error generating PDF:', error);
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
   const downloadCatalogue = () => {
     const catalogueData = {
       products: products,
@@ -133,17 +162,17 @@ export default function CatalogueCreator() {
       version: '2.0',
       metadata: {
         title: 'Product Catalogue',
-        description: 'AI-generated product catalogue with enhanced features',
+        description: 'AI-generated product catalogue by NovagenAI',
         totalProducts: products.length,
         categories: categories
       }
     };
-    
+
     const blob = new Blob([JSON.stringify(catalogueData, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = 'enhanced-catalogue.json';
+    a.download = 'novagenai-catalogue.json';
     a.click();
     URL.revokeObjectURL(url);
   };
@@ -159,13 +188,13 @@ export default function CatalogueCreator() {
       product.stock || 0,
       product.rating || 0
     ]);
-    
+
     const csvContent = [csvHeaders.join(','), ...csvRows.map(row => row.join(','))].join('\n');
     const blob = new Blob([csvContent], { type: 'text/csv' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = 'catalogue.csv';
+    a.download = 'novagenai-catalogue.csv';
     a.click();
     URL.revokeObjectURL(url);
   };
@@ -178,7 +207,7 @@ export default function CatalogueCreator() {
   const filteredAndSortedProducts = products
     .filter(product => {
       const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                          product.description.toLowerCase().includes(searchTerm.toLowerCase());
+        product.description.toLowerCase().includes(searchTerm.toLowerCase());
       const matchesCategory = selectedCategory === 'all' || product.category === selectedCategory;
       return matchesSearch && matchesCategory;
     })
@@ -209,8 +238,8 @@ export default function CatalogueCreator() {
       const file = (e.target as HTMLInputElement).files?.[0];
       if (file) {
         const imageUrl = URL.createObjectURL(file);
-        setProducts(products.map(p => 
-          p.id === productId 
+        setProducts(products.map(p =>
+          p.id === productId
             ? { ...p, images: [...(p.images || []), imageUrl] }
             : p
         ));
@@ -237,7 +266,7 @@ export default function CatalogueCreator() {
             <Package className="w-12 h-12 text-blue-500" />
           </div>
         </div>
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-gray-500">Total Value</p>
@@ -271,26 +300,26 @@ export default function CatalogueCreator() {
         <div className="lg:col-span-1">
           <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
             <h2 className="text-xl font-semibold mb-4">Create New Product</h2>
-            
+
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Product Name</label>
                 <input
                   type="text"
                   value={currentProduct.name}
-                  onChange={(e) => setCurrentProduct({...currentProduct, name: e.target.value})}
+                  onChange={(e) => setCurrentProduct({ ...currentProduct, name: e.target.value })}
                   placeholder="Enter product name..."
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500"
                 />
               </div>
-              
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Price</label>
                   <input
                     type="text"
                     value={currentProduct.price}
-                    onChange={(e) => setCurrentProduct({...currentProduct, price: e.target.value})}
+                    onChange={(e) => setCurrentProduct({ ...currentProduct, price: e.target.value })}
                     placeholder="$0.00"
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500"
                   />
@@ -299,7 +328,7 @@ export default function CatalogueCreator() {
                   <label className="block text-sm font-medium text-gray-700 mb-2">Category</label>
                   <select
                     value={currentProduct.category}
-                    onChange={(e) => setCurrentProduct({...currentProduct, category: e.target.value})}
+                    onChange={(e) => setCurrentProduct({ ...currentProduct, category: e.target.value })}
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500"
                   >
                     <option value="">Select category...</option>
@@ -309,34 +338,34 @@ export default function CatalogueCreator() {
                   </select>
                 </div>
               </div>
-              
+
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Description</label>
                 <textarea
                   value={currentProduct.description}
-                  onChange={(e) => setCurrentProduct({...currentProduct, description: e.target.value})}
+                  onChange={(e) => setCurrentProduct({ ...currentProduct, description: e.target.value })}
                   placeholder="Enter product description..."
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500 resize-none h-20"
                 />
               </div>
-              
+
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Tags (comma-separated)</label>
                 <input
                   type="text"
                   value={currentProduct.tags?.join(', ') || ''}
-                  onChange={(e) => setCurrentProduct({...currentProduct, tags: e.target.value.split(',').map(tag => tag.trim())})}
+                  onChange={(e) => setCurrentProduct({ ...currentProduct, tags: e.target.value.split(',').map(tag => tag.trim()) })}
                   placeholder="premium, bestseller, new..."
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500"
                 />
               </div>
             </div>
-            
-            <div className="flex gap-3 mt-4">
+
+            <div className="flex flex-col gap-3 mt-4">
               <button
                 onClick={generateProduct}
                 disabled={isGenerating || !currentProduct.name.trim()}
-                className="flex-1 bg-gradient-to-r from-cyan-500 to-blue-500 text-white px-6 py-2 rounded-lg hover:from-cyan-600 hover:to-blue-600 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                className="w-full bg-gradient-to-r from-cyan-500 to-blue-500 text-white px-6 py-2 rounded-lg hover:from-cyan-600 hover:to-blue-600 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
               >
                 {isGenerating ? (
                   <>
@@ -349,6 +378,14 @@ export default function CatalogueCreator() {
                     Add Product
                   </>
                 )}
+              </button>
+
+              <button
+                onClick={downloadCatalogueAsPDF}
+                className="w-full bg-gray-900 text-white px-6 py-2 rounded-lg hover:bg-gray-800 flex items-center justify-center gap-2"
+              >
+                <FileText className="w-4 h-4" />
+                Export PDF Catalogue
               </button>
             </div>
           </div>

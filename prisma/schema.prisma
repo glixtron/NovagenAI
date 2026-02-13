@@ -64,6 +64,9 @@ model Presentation {
   settings    Json?    // Canvas settings, theme, etc.
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+  
+  slides      Slide[]
+  exports     Export[]
 
   @@map("presentations")
 }
@@ -87,6 +90,9 @@ model Slide {
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
+  presentation   Presentation @relation(fields: [presentationId], references: [id], onDelete: Cascade)
+  elements       Element[]
+
   @@map("slides")
 }
 
@@ -101,6 +107,8 @@ model Element {
   visible      Boolean  @default(true)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
+
+  slide        Slide    @relation(fields: [slideId], references: [id], onDelete: Cascade)
 
   @@map("elements")
 }
@@ -290,6 +298,32 @@ model Analytics {
   createdAt    DateTime @default(now())
 
   @@map("analytics")
+}
+
+// Export models
+model Export {
+  id             String   @id @default(cuid())
+  presentationId String
+  format         String
+  options        Json
+  fileSize       Int
+  downloadUrl    String
+  expiresAt      DateTime
+  processingTime Int
+  status         ExportStatus @default(COMPLETED)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  presentation   Presentation @relation(fields: [presentationId], references: [id], onDelete: Cascade)
+
+  @@map("exports")
+}
+
+enum ExportStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
 }
 
 enum AnalyticsEvent {

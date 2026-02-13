@@ -1,7 +1,8 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { Presentation, Download, Loader2, Plus, Trash2, Image as ImageIcon, BarChart3, MapPin, Users, TrendingUp, Zap, Eye, Share2, Copy, FileText, Settings, Palette, Type, Layout, Sparkles, Clock, Target, Brain, Globe, ChevronRight, Play, Pause, RotateCcw, Save, Upload, Filter, Search, Grid3x3, List, Star, MessageSquare, TrendingDown, Award, BookOpen, Briefcase, GraduationCap, Heart, DollarSign } from 'lucide-react';
+import { Presentation, Download, Loader2, Plus, Trash2, Image as ImageIcon, BarChart3, MapPin, Users, TrendingUp, Zap, Eye, Share2, Copy, FileText, Settings, Palette, Type, Layout, Sparkles, Clock, Target, Brain, Globe, ChevronRight, Play, Pause, RotateCcw, Save, Upload, Filter, Search, Grid3x3, List, Star, MessageSquare, TrendingDown, Award, BookOpen, Briefcase, GraduationCap, Heart, DollarSign, RefreshCw, AlignLeft } from 'lucide-react';
+import { toast } from 'react-hot-toast';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import Groq from 'groq-sdk';
 
@@ -161,7 +162,10 @@ export default function SlidesGenerator() {
   const [brandColors, setBrandColors] = useState(['#00acc1', '#1a237e', '#ffffff', '#000000']);
   const [animationEnabled, setAnimationEnabled] = useState(true);
   const [accessibilityMode, setAccessibilityMode] = useState(false);
-  const [architectMode, setArchitectMode] = useState(true); // Default to true for world-class experience
+  const [architectMode, setArchitectMode] = useState(true);
+  const [isRefining, setIsRefining] = useState(false);
+  const [isProcessingDeepAI, setIsProcessingDeepAI] = useState(false);
+  // Default to true for world-class experience
 
   // Constants from the provided code
   const THEMES = [
@@ -485,8 +489,60 @@ Return format (strict JSON):
       setCurrentSlide(0);
     } catch (error) {
       console.error('Error generating slides:', error);
+      toast.error('Failed to generate slides. Please try again.');
     } finally {
       setIsGenerating(false);
+    }
+  };
+
+  const refineSlideContent = async (type: 'rephrase' | 'toneShift' | 'adjustLength' | 'translate', option?: string) => {
+    if (isRefining) return;
+    setIsRefining(true);
+    try {
+      const currentContent = slides[currentSlide].content;
+      const response = await fetch('/api/content/refine', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type, content: currentContent, option })
+      });
+      const data = await response.json();
+      if (data.success) {
+        updateSlide(slides[currentSlide].id, { content: data.content });
+        // Assuming toast is available, e.g., from react-hot-toast
+        // toast.success(`Slide ${type} successful!`);
+      } else {
+        // toast.error('Refinement failed');
+      }
+    } catch (e) {
+      console.error('Refinement error:', e);
+      // toast.error('Error refining content');
+    } finally {
+      setIsRefining(false);
+    }
+  };
+
+  const processDeepAI = async (action: string, imageUrl: string) => {
+    if (isProcessingDeepAI) return;
+    setIsProcessingDeepAI(true);
+    const id = toast.loading(`${action.replace(/([A-Z])/g, ' $1').trim()}...`);
+    try {
+      const response = await fetch('/api/deepai', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action, imageUrl })
+      });
+      const data = await response.json();
+      if (data.success) {
+        updateSlide(slides[currentSlide].id, { imageUrl: data.url });
+        toast.success('Enhancement applied!', { id });
+      } else {
+        toast.error('Processing failed', { id });
+      }
+    } catch (e) {
+      console.error('DeepAI processing error:', e);
+      toast.error('Error enhancing image', { id });
+    } finally {
+      setIsProcessingDeepAI(false);
     }
   };
 
@@ -858,10 +914,45 @@ Return format (strict JSON):
                   <h3 className="text-3xl font-bold text-gray-900 mb-4">
                     {slides[currentSlide].title}
                   </h3>
-                  <div className="text-gray-700 space-y-3">
-                    {slides[currentSlide].content.split('\n\n').map((paragraph, index) => (
-                      <p key={index} className="leading-relaxed">{paragraph}</p>
-                    ))}
+                  <div className="relative group">
+                    <textarea
+                      value={slides[currentSlide].content}
+                      onChange={(e) => updateSlide(slides[currentSlide].id, { content: e.target.value })}
+                      className="w-full min-h-[200px] p-4 bg-transparent border-none focus:ring-2 focus:ring-blue-500/20 rounded-xl resize-none text-gray-700 leading-relaxed text-lg"
+                      placeholder="Slide content..."
+                    />
+
+                    {/* Smart Editing Toolbar */}
+                    <div className="absolute -top-12 right-0 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity bg-white shadow-xl border border-gray-100 rounded-full p-1.5 z-10">
+                      <button
+                        onClick={() => refineSlideContent('rephrase')}
+                        disabled={isRefining}
+                        className="p-2 hover:bg-blue-50 text-blue-600 rounded-full transition-colors title='Rephrase'"
+                      >
+                        <RefreshCw className={`w-4 h-4 ${isRefining ? 'animate-spin' : ''}`} />
+                      </button>
+                      <button
+                        onClick={() => refineSlideContent('toneShift', 'more professional')}
+                        disabled={isRefining}
+                        className="p-2 hover:bg-indigo-50 text-indigo-600 rounded-full transition-colors title='Professional Tone'"
+                      >
+                        <Briefcase className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={() => refineSlideContent('adjustLength', 'shorter')}
+                        disabled={isRefining}
+                        className="p-2 hover:bg-amber-50 text-amber-600 rounded-full transition-colors title='Make Concise'"
+                      >
+                        <AlignLeft className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={() => refineSlideContent('translate', 'Spanish')}
+                        disabled={isRefining}
+                        className="p-2 hover:bg-purple-50 text-purple-600 rounded-full transition-colors title='Translate'"
+                      >
+                        <Globe className="w-4 h-4" />
+                      </button>
+                    </div>
                   </div>
                 </div>
 
@@ -895,15 +986,50 @@ Return format (strict JSON):
                   </button>
                 )}
 
-                {/* Generated Image */}
+                {/* Generated Image with DeepAI Enhancements */}
                 {slides[currentSlide].imageUrl && (
-                  <div className="mt-6">
+                  <div className="mt-6 relative group/img">
                     <img
                       src={slides[currentSlide].imageUrl}
                       alt={slides[currentSlide].title}
-                      className="w-full max-h-80 object-cover rounded-2xl shadow-xl"
+                      className="w-full max-h-80 object-cover rounded-2xl shadow-xl transition-all"
                     />
-                    <p className="text-sm text-gray-600 mt-3 font-medium">AI Generated Image</p>
+
+                    {/* DeepAI Enhancement Toolbar */}
+                    <div className="absolute top-4 right-4 flex gap-2 opacity-0 group-hover/img:opacity-100 transition-opacity bg-white/90 backdrop-blur-sm p-2 rounded-2xl border border-white/50 shadow-2xl">
+                      <button
+                        onClick={() => processDeepAI('removeBackground', slides[currentSlide].imageUrl!)}
+                        disabled={isProcessingDeepAI}
+                        className="p-2.5 bg-red-50 text-red-600 rounded-xl hover:bg-red-100 transition-all shadow-sm title='Remove Background'"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={() => processDeepAI('superResolution', slides[currentSlide].imageUrl!)}
+                        disabled={isProcessingDeepAI}
+                        className="p-2.5 bg-blue-50 text-blue-600 rounded-xl hover:bg-blue-100 transition-all shadow-sm title='High Resolution'"
+                      >
+                        <Zap className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={() => processDeepAI('colorize', slides[currentSlide].imageUrl!)}
+                        disabled={isProcessingDeepAI}
+                        className="p-2.5 bg-orange-50 text-orange-600 rounded-xl hover:bg-orange-100 transition-all shadow-sm title='Colorize'"
+                      >
+                        <Palette className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={() => processDeepAI('expand', slides[currentSlide].imageUrl!)}
+                        disabled={isProcessingDeepAI}
+                        className="p-2.5 bg-green-50 text-green-600 rounded-xl hover:bg-green-100 transition-all shadow-sm title='Expand (Zoom Out)'"
+                      >
+                        <Grid3x3 className="w-4 h-4" />
+                      </button>
+                    </div>
+                    <p className="text-sm text-gray-600 mt-3 font-medium flex items-center gap-2">
+                      <Sparkles className="w-4 h-4 text-blue-500" />
+                      Optimized with DeepAI Suite
+                    </p>
                   </div>
                 )}
 

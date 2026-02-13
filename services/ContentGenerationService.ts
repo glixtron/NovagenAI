@@ -49,37 +49,50 @@ export class PromptLibrary {
   }
 
   private static getPresentationArchitectPrompt(tone: string, audience: string, language: string): string {
-    return `You are the NovagenAI Presentation Architect, a senior AI systems expert specializing in multimodal generation and world-class design.
+    return `You are the NovagenAI Presentation Architect, a world-class senior AI systems expert specializing in multimodal generation and high-end strategic design.
     
-    CORE CAPABILITIES:
-    1. INTELLIGENT PARSING: Analyze topic, domain (Business/Academic/Technical/Creative), and audience depth.
-    2. ADAPTIVE STRUCTURE: 
-       - Business: Problem -> Market -> Solution -> Financials -> Ask
-       - Academic: Abstract -> Methodology -> Data -> Findings -> Conclusion
-       - Technical: Architecture -> Components -> API -> Deployment
+    CORE SYSTEM ARCHITECTURE:
+    1. INTELLIGENT PARSING: Perform deep subject matter extraction and domain classification (Business/Academic/Technical/Creative).
+    2. ADAPTIVE CONTENT GENERATION:
+       - Business: Problem -> Market Analysis -> Solution -> Financials -> Ask
+       - Academic: Abstract -> Methodology -> Data Analysis -> Findings -> Conclusion
+       - Technical: Architecture -> Components -> API -> Deployment -> Troubleshooting
        - Creative: Concept -> Process -> Execution -> Results
-    3. VISUAL INTELLIGENCE: Identify where to trigger images, bar graphs, and hierarchy charts.
-    4. SMART EDITING: Provide hierarchical headlines, concise body text (max 50 words), and rich speaker notes.
+    3. VISUAL INTELLIGENCE SYSTEM:
+       - Context-aware image detection (Abstract/Metaphorical vs Photorealistic vs Schematic).
+       - Style Matching: Align visuals with ${tone} tone and ${audience} expectations.
+       - Automated Data Visualization: Identify numerical sequences and trigger bar/line/pie/org charts.
+    4. SMART EDITING: Provide hierarchical headlines, body text (<50 words), and rich speaker notes.
+    5. CROSS-DOMAIN INTELLIGENCE: Use precise industry terminology (Healthcare/Finance/Tech/Marketing).
     
     TONE: ${tone} (Elegant, authoritative, compelling).
     AUDIENCE: ${audience}.
     LANGUAGE: ${language}.
     
-    OUTPUT REQUIREMENTS:
-    - Structured JSON format.
-    - 3-5 image prompts (DALL-E style) matched to visual style.
-    - Data visualization triggers for numerical data.
-    - 100% original content; no placeholders.`;
+    OUTPUT SPECIFICATIONS (Strict JSON):
+    - "title": "Main Presentation Title",
+    - "slides": Array of objects containing "title", "body" (bullet points), "layout", "visual_trigger" (image prompt or chart data), and "speaker_notes".
+    - "image_prompts": 3-5 high-fidelity DALL-E 3 style prompts matched to the narrative.
+    - "data_visualizations": Array of chart configurations found in the text.
+    - "domain": The detected industry domain.
+    - "narrative_arc": Brief explanation of the flow.
+    
+    VALIDATION RULES:
+    - 100% original content; zero templates.
+    - Consistency: Maintain visual and tonal continuity.
+    - Accuracy: Ensure data integrity in charts.`;
   }
 
   static engineerPrompt(prompt: string, format?: string): string {
     if (format === 'presentation') {
-      return `REFINED ARCHITECTURAL REQUEST:
+      return `ULTIMATE ARCHITECTURAL EXECUTION:
       1. Analyze core intent: ${prompt}
-      2. Domain Classification: Determine field automatically.
-      3. Narrative structure development.
-      4. Multi-layered response with reasoning and content.
-      5. Cross-domain intelligence injection.`;
+      2. Domain Classification: Determine field automatically based on keywords.
+      3. Narrative Structure: Build a 8-15 slide arc with Beginning-Middle-End.
+      4. Multi-layered response: content, visual cues, and strategic reasoning.
+      5. cross-domain vocabulary injection.
+      
+      Generate a complete, world-class presentation structure in JSON.`;
     }
 
     return `USER REQUEST: ${prompt}
@@ -90,6 +103,16 @@ export class PromptLibrary {
     3. If the user wants to generate something, provide a multi-layered response with reasoning, content, and next-step recommendations.
     4. Ensure the output feels like it was crafted by a top-tier human specialist.
     5. Use Markdown for elegant formatting.`;
+  }
+
+  static getRefinementPrompt(type: string, content: string, option?: string): string {
+    const prompts = {
+      rephrase: `Rephrase the following content to be more impactful and professional while maintaining the core meaning:\n\n${content}`,
+      toneShift: `Change the tone of the following content to be ${option || 'more professional'}:\n\n${content}`,
+      adjustLength: `Modify the following content to be ${option || 'shorter and more concise'}:\n\n${content}`,
+      translate: `Translate the following content to ${option || 'Spanish'} while ensuring cultural and professional context is preserved:\n\n${content}`
+    };
+    return (prompts as any)[type] || prompts.rephrase;
   }
 }
 
@@ -435,5 +458,14 @@ export class ContentGenerationService {
     } catch (error) {
       console.error('Failed to log generation:', error);
     }
+  }
+
+  async refineContent(type: 'rephrase' | 'toneShift' | 'adjustLength' | 'translate', content: string, option?: string): Promise<string> {
+    const systemPrompt = "You are an elite AI copywriter specializing in presentation refinement.";
+    const userPrompt = PromptLibrary.getRefinementPrompt(type, content, option);
+
+    const model = this.genAI.getGenerativeModel({ model: 'gemini-1.5-pro' });
+    const result = await model.generateContent(systemPrompt + "\n\n" + userPrompt);
+    return result.response.text() || content;
   }
 }

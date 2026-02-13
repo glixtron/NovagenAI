@@ -6,6 +6,8 @@ import path from 'path';
 import { exec } from 'child_process';
 import { promisify } from 'util';
 import { presentationEnhancerService } from './PresentationEnhancerService';
+import Replicate from 'replicate';
+import { deepAIService } from './DeepAIService';
 
 
 const execAsync = promisify(exec);
@@ -182,10 +184,14 @@ export class PPTGeneratorService {
   private s3Client: S3Client;
   private redis: Redis;
   private localStoragePath: string;
+  private replicate: Replicate;
 
   constructor() {
     this.prisma = new PrismaClient();
     this.s3Client = new S3Client({ region: process.env.AWS_REGION });
+    this.replicate = new Replicate({
+      auth: process.env.REPLICATE_API_TOKEN,
+    });
 
     this.redis = new Redis({
       host: process.env.REDIS_HOST,
@@ -801,17 +807,50 @@ export class PPTGeneratorService {
     const assets = await this.generateMultimodalAssets(architectData, presentationId);
 
     // 3. Process the architect's slides into the system format
-    const slides = await this.processSlides(architectData.slides.map((s: any, idx: number) => ({
-      id: `slide-${idx}`,
-      title: s.title,
-      content: {
-        elements: s.elements || [{ type: 'text', content: s.body || s.content, position: { x: 10, y: 20, width: 80, height: 60 }, style: {} }],
-        layout: { template: s.layout || 'default', grid: { columns: 12, rows: 12 }, spacing: { horizontal: 0, vertical: 0 }, alignment: 'left' },
-        theme: baseRequest.theme || { colors: { primary: '#000', secondary: '#fff', background: '#fff', text: '#000', accent: '#333' }, fonts: { heading: 'Inter', body: 'Roboto', mono: 'monospace' }, sizes: { heading: { h1: 48, h2: 36, h3: 24 }, body: 18, small: 14 } },
-        transitions: { type: 'fade', duration: 0.5 }
-      },
-      metadata: { order: idx, notes: s.speaker_notes, created_at: new Date().toISOString(), updated_at: new Date().toISOString() }
-    })) as any, presentationId);
+    const slides = await this.processSlides(architectData.slides.map((s: any, idx: number) => {
+      const bodyContent = Array.isArray(s.body) ? s.body.join('\n\n') : (s.body || s.content);
+      const elements: any[] = [];
+
+      // Add text element
+      elements.push({
+        type: 'text',
+        content: { text: bodyContent },
+        position: { x: 10, y: 20, width: 80, height: 60 },
+        style: {}
+      });
+
+      // Add visual trigger if it's an image
+      if (s.visual_trigger && typeof s.visual_trigger === 'string' && s.visual_trigger.length > 5) {
+        // Find matching asset or just keep as prompt for front-end
+        elements.push({
+          type: 'image',
+          content: { prompt: s.visual_trigger, status: 'pending' },
+          position: { x: 60, y: 30, width: 30, height: 40 },
+          style: {}
+        });
+      }
+
+      return {
+        id: `slide-${idx}`,
+        title: s.title,
+        content: {
+          elements: elements,
+          layout: { template: s.layout || 'default', grid: { columns: 12, rows: 12 }, spacing: { horizontal: 0, vertical: 0 }, alignment: 'left' },
+          theme: baseRequest.theme || {
+            colors: { primary: '#0f172a', secondary: '#334155', background: '#ffffff', text: '#0f172a', accent: '#3b82f6' },
+            fonts: { heading: 'Inter', body: 'Inter', mono: 'JetBrains Mono' },
+            sizes: { heading: { h1: 48, h2: 36, h3: 24 }, body: 18, small: 14 }
+          },
+          transitions: { type: 'fade', duration: 0.5 }
+        },
+        metadata: {
+          order: idx,
+          notes: s.speaker_notes,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        }
+      };
+    }) as any, presentationId);
 
     // 4. Finalize and Save
     await this.saveSlides(slides, presentationPath);
@@ -840,10 +879,67 @@ export class PPTGeneratorService {
     // Trigger Image Generation for image_prompts
     if (architectData.image_prompts) {
       for (const prompt of architectData.image_prompts) {
-        // Here we would call Replicate or Dall-E
-        console.log('Triggering AI Image Generation:', prompt);
-        // Mocking asset for now, but wired for integration
-        assets.images.push({ type: 'ai-generated', prompt, status: 'pending' });
+        console.log('Orchestrating AI Image Generation:', prompt);
+        try {
+          // Using SDXL or similar high-end model via Replicate
+          const output: any = await this.replicate.run(
+            "stability-ai/sdxl:39ed52f2a78e934b3ba6e2a89f5b1c712de71955d73c69945a05bc94b8812495",
+            {
+              input: {
+                prompt: prompt,
+                negative_prompt: "text, watermark, logo, blurry, low quality",
+                width: 1024,
+                height: 768,
+                refine: "expert_ensemble_refiner",
+                apply_watermark: false,
+                num_inference_steps: 30
+              }
+            }
+          );
+
+          if (output && output[0]) {
+            let imageUrl = output[0];
+
+            // OPTIMIZATION: Use DeepAI Super Resolution to upscale the AI-generated image
+            try {
+              console.log('Optimizing with DeepAI Super Resolution...');
+              imageUrl = await deepAIService.superResolution(imageUrl);
+            } catch (srError) {
+              console.warn('DeepAI Super Resolution failed, using original output', srError);
+            }
+
+            // Download and save locally then upload to S3
+            const filename = `ai_gen_optimized_${Date.now()}.png`;
+            const imagePath = path.join(this.localStoragePath, presentationId, 'slides', 'assets', 'images', filename);
+
+            const response = await fetch(imageUrl);
+            const buffer = Buffer.from(await response.arrayBuffer());
+            await fs.writeFile(imagePath, buffer);
+
+            const s3Url = await this.uploadToS3(imagePath, filename, 'image/png');
+            assets.images.push({ type: 'ai-generated', prompt, url: s3Url, status: 'completed' });
+          }
+        } catch (e) {
+          console.error('AI Image generation failed during orchestration, trying DeepAI fallback', e);
+
+          // FALLBACK: Use DeepAI Image Generator if Replicate fails
+          try {
+            console.log('Triggering DeepAI Text-to-Image Fallback...');
+            const deepAIUrl = await deepAIService.text2img(prompt);
+            const filename = `deepai_gen_${Date.now()}.png`;
+            const imagePath = path.join(this.localStoragePath, presentationId, 'slides', 'assets', 'images', filename);
+
+            const response = await fetch(deepAIUrl);
+            const buffer = Buffer.from(await response.arrayBuffer());
+            await fs.writeFile(imagePath, buffer);
+
+            const s3Url = await this.uploadToS3(imagePath, filename, 'image/png');
+            assets.images.push({ type: 'ai-generated', prompt, url: s3Url, status: 'completed', provider: 'deepai' });
+          } catch (deepError) {
+            console.error('DeepAI fallback also failed', deepError);
+            assets.images.push({ type: 'ai-generated', prompt, status: 'failed', error: (deepError as Error).message });
+          }
+        }
       }
     }
 
@@ -851,15 +947,20 @@ export class PPTGeneratorService {
     if (architectData.data_visualizations) {
       const vizService = (this as any).vizService || new (require('./DataVisualizationService').DataVisualizationService)();
       for (const viz of architectData.data_visualizations) {
-        console.log('Triggering AI Data Visualization:', viz.type);
+        console.log('Orchestrating AI Data Visualization:', viz.type);
         try {
           const chart = await vizService.generateChart({
             type: viz.type || 'bar',
             library: 'chartjs',
             data: viz.data || { labels: [], datasets: [] },
-            options: { title: viz.title, theme: 'corporate' }
+            options: {
+              title: viz.title,
+              theme: (architectData.domain === 'Business') ? 'corporate' : 'modern',
+              width: 1024,
+              height: 768
+            }
           });
-          assets.charts.push(chart.renderUrl);
+          assets.charts.push({ type: viz.type, url: chart.renderUrl });
         } catch (e) {
           console.error('Chart generation failed during orchestration', e);
         }

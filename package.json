@@ -4,7 +4,7 @@
   "description": "AI-powered creative suite for presentations, images, and content generation",
   "main": "index.js",
   "engines": {
-    "node": "18.x",
+    "node": "24.x",
     "npm": "8.x"
   },
   "scripts": {

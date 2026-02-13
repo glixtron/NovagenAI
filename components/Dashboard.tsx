@@ -2,20 +2,20 @@
 
 import { useState } from 'react';
 import { useSession, signOut } from 'next-auth/react';
-import { 
-  Home, 
-  Presentation, 
-  FileText, 
-  MessageSquare, 
-  RefreshCw, 
-  Sparkles, 
-  FileEdit, 
-  Settings, 
-  Search, 
-  Bell, 
-  Moon, 
-  Sun, 
-  Menu, 
+import {
+  Home,
+  Presentation,
+  FileText,
+  MessageSquare,
+  RefreshCw,
+  Sparkles,
+  FileEdit,
+  Settings,
+  Search,
+  Bell,
+  Moon,
+  Sun,
+  Menu,
   X,
   User,
   LogOut
@@ -274,15 +274,30 @@ export default function Dashboard() {
                 {showUserMenu && (
                   <div className={`absolute right-0 mt-2 w-48 rounded-lg shadow-lg ${darkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'} border`}>
                     <div className="p-3 border-b border-gray-200">
-                      <p className={`font-medium ${darkMode ? 'text-white' : 'text-gray-900'}`}>{session?.user?.name}</p>
-                      <p className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>{session?.user?.email}</p>
+                      <p className={`font-medium ${darkMode ? 'text-white' : 'text-gray-900'}`}>{session?.user?.name || 'Guest User'}</p>
+                      <p className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>{session?.user?.email || 'Local Session'}</p>
                     </div>
+                    {!session && (
+                      <button
+                        onClick={() => {
+                          if (confirm('Are you sure? This will clear all your local data.')) {
+                            localStorage.clear();
+                            sessionStorage.clear();
+                            window.location.reload();
+                          }
+                        }}
+                        className={`w-full text-left px-4 py-2 ${darkMode ? 'hover:bg-gray-700 text-red-400' : 'hover:bg-gray-100 text-red-600'} flex items-center space-x-2`}
+                      >
+                        <RefreshCw className="w-4 h-4" />
+                        <span>Clear Data</span>
+                      </button>
+                    )}
                     <button
-                      onClick={() => signOut()}
+                      onClick={() => session ? signOut() : window.location.href = '/auth/signin'}
                       className={`w-full text-left px-4 py-2 ${darkMode ? 'hover:bg-gray-700 text-white' : 'hover:bg-gray-100 text-gray-700'} flex items-center space-x-2`}
                     >
                       <LogOut className="w-4 h-4" />
-                      <span>Sign Out</span>
+                      <span>{session ? 'Sign Out' : 'Sign In'}</span>
                     </button>
                   </div>
                 )}
@@ -300,13 +315,12 @@ export default function Dashboard() {
               <button
                 key={item.id}
                 onClick={() => setActiveView(item.id)}
-                className={`w-full flex items-center space-x-3 px-4 py-3 rounded-lg transition-colors ${
-                  item.active
+                className={`w-full flex items-center space-x-3 px-4 py-3 rounded-lg transition-colors ${item.active
                     ? 'bg-gradient-to-r from-cyan-500 to-blue-500 text-white'
                     : darkMode
-                    ? 'text-gray-300 hover:bg-gray-700'
-                    : 'text-gray-700 hover:bg-gray-100'
-                }`}
+                      ? 'text-gray-300 hover:bg-gray-700'
+                      : 'text-gray-700 hover:bg-gray-100'
+                  }`}
               >
                 {item.icon}
                 <span className="font-medium">{item.name}</span>

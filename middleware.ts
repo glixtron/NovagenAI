@@ -4,30 +4,25 @@ import { getToken } from 'next-auth/jwt'
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
-  
+
   // Fix: Allow API routes and Next.js assets to pass through
   if (pathname.startsWith('/api') || pathname.startsWith('/_next') || pathname.includes('/static') || pathname.includes('favicon.ico')) {
     return NextResponse.next()
   }
-  
+
   // 1. Get the token (session)
-  const token = await getToken({ 
-    req: request, 
-    secret: process.env.NEXTAUTH_SECRET 
+  const token = await getToken({
+    req: request,
+    secret: process.env.NEXTAUTH_SECRET
   })
 
   // 2. Define protected routes
-  const protectedRoutes = ['/slides', '/catalogue', '/dashboard']
-  
-  // 3. Check if current path is protected
-  const isProtectedRoute = protectedRoutes.some(route => pathname.startsWith(route))
-  
-  // 4. Logic: Only redirect if accessing protected route WITHOUT a valid token
-  if (isProtectedRoute && !token) {
-    const signInUrl = new URL('/auth/signin', request.url)
-    return NextResponse.redirect(signInUrl)
-  }
-  
+  // 4. Logic: Allow access even without token (Guest Mode)
+  // if (isProtectedRoute && !token) {
+  //   const signInUrl = new URL('/auth/signin', request.url)
+  //   return NextResponse.redirect(signInUrl)
+  // }
+
   // 5. Allow access to all other routes (including home page)
   return NextResponse.next()
 }

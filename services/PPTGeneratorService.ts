@@ -201,6 +201,11 @@ export class PPTGeneratorService {
     try {
       const startTime = Date.now();
 
+      // IF autonomous mode (topic provided instead of slides)
+      if ((request as any).topic) {
+        return this.generateFromArchitect((request as any).topic, request);
+      }
+
       // Create presentation structure
       const presentationPath = path.join(this.localStoragePath, request.presentation_id);
       await this.createDirectoryStructure(presentationPath);
@@ -768,6 +773,100 @@ export class PPTGeneratorService {
   private async cachePresentationStructure(presentationId: string): Promise<void> {
     const structure = await this.getPresentation(presentationId);
     await this.redis.setex(`presentation:${presentationId}`, 3600, JSON.stringify(structure));
+  }
+
+  /**
+   * Fully autonomous generation mode based on 'Presentation Architect' logic
+   */
+  private async generateFromArchitect(topic: string, baseRequest: PPTGenerationRequest): Promise<PPTGenerationResponse> {
+    const contentService = (this as any).contentService || new (require('./ContentGenerationService').ContentGenerationService)();
+    const startTime = Date.now();
+
+    // 1. Generate full presentation architecture via Gemini
+    const archResponse = await contentService.generateContent({
+      prompt: topic,
+      format: 'presentation',
+      tone: baseRequest.theme?.fonts.heading || 'professional',
+      audience: 'general',
+      language: 'english',
+      model: 'gemini-1.5-pro'
+    });
+
+    const architectData = JSON.parse(archResponse.content);
+    const presentationId = baseRequest.presentation_id;
+    const presentationPath = path.join(this.localStoragePath, presentationId);
+    await this.createDirectoryStructure(presentationPath);
+
+    // 2. Orchestrate Multimodal Assets
+    const assets = await this.generateMultimodalAssets(architectData, presentationId);
+
+    // 3. Process the architect's slides into the system format
+    const slides = await this.processSlides(architectData.slides.map((s: any, idx: number) => ({
+      id: `slide-${idx}`,
+      title: s.title,
+      content: {
+        elements: s.elements || [{ type: 'text', content: s.body || s.content, position: { x: 10, y: 20, width: 80, height: 60 }, style: {} }],
+        layout: { template: s.layout || 'default', grid: { columns: 12, rows: 12 }, spacing: { horizontal: 0, vertical: 0 }, alignment: 'left' },
+        theme: baseRequest.theme || { colors: { primary: '#000', secondary: '#fff', background: '#fff', text: '#000', accent: '#333' }, fonts: { heading: 'Inter', body: 'Roboto', mono: 'monospace' }, sizes: { heading: { h1: 48, h2: 36, h3: 24 }, body: 18, small: 14 } },
+        transitions: { type: 'fade', duration: 0.5 }
+      },
+      metadata: { order: idx, notes: s.speaker_notes, created_at: new Date().toISOString(), updated_at: new Date().toISOString() }
+    })) as any, presentationId);
+
+    // 4. Finalize and Save
+    await this.saveSlides(slides, presentationPath);
+    const generatedFiles = await this.generatePresentationFiles(baseRequest, slides);
+
+    const response: PPTGenerationResponse = {
+      success: true,
+      presentation_id: presentationId,
+      files: generatedFiles,
+      assets: assets,
+      metadata: {
+        total_slides: slides.length,
+        generation_time: Date.now() - startTime,
+        architect: true,
+        domain: architectData.domain || 'general'
+      }
+    };
+
+    await this.savePresentationToDB(response);
+    return response;
+  }
+
+  private async generateMultimodalAssets(architectData: any, presentationId: string): Promise<any> {
+    const assets: any = { images: [], charts: [] };
+
+    // Trigger Image Generation for image_prompts
+    if (architectData.image_prompts) {
+      for (const prompt of architectData.image_prompts) {
+        // Here we would call Replicate or Dall-E
+        console.log('Triggering AI Image Generation:', prompt);
+        // Mocking asset for now, but wired for integration
+        assets.images.push({ type: 'ai-generated', prompt, status: 'pending' });
+      }
+    }
+
+    // Trigger Chart Generation for data_triggers
+    if (architectData.data_visualizations) {
+      const vizService = (this as any).vizService || new (require('./DataVisualizationService').DataVisualizationService)();
+      for (const viz of architectData.data_visualizations) {
+        console.log('Triggering AI Data Visualization:', viz.type);
+        try {
+          const chart = await vizService.generateChart({
+            type: viz.type || 'bar',
+            library: 'chartjs',
+            data: viz.data || { labels: [], datasets: [] },
+            options: { title: viz.title, theme: 'corporate' }
+          });
+          assets.charts.push(chart.renderUrl);
+        } catch (e) {
+          console.error('Chart generation failed during orchestration', e);
+        }
+      }
+    }
+
+    return assets;
   }
 
   private async uploadToS3(filePath: string, filename: string, contentType: string): Promise<string> {

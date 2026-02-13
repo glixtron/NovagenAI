@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
+import { PPTGeneratorService } from '@/services/PPTGeneratorService'
+
+const pptService = new PPTGeneratorService()
 
 export async function POST(request: NextRequest) {
   try {
@@ -8,37 +11,36 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const { topic, industry, tone, length, style } = await request.json()
+    const body = await request.json()
+    const { topic, industry, tone, length, style, architectMode } = body
 
-    // Mock AI generation for now
-    const mockPresentation = {
-      id: 'mock-' + Date.now(),
-      title: topic,
-      description: `AI-generated presentation about ${topic} for the ${industry} industry`,
-      slides: [
-        {
-          id: 1,
-          title: 'Introduction',
-          content: `Welcome to this presentation about ${topic}. This ${tone} presentation covers key aspects of the ${industry} industry.`
-        },
-        {
-          id: 2,
-          title: 'Key Points',
-          content: `Main points about ${topic} in ${industry}:\n• Important aspect 1\n• Important aspect 2\n• Important aspect 3`
-        },
-        {
-          id: 3,
-          title: 'Conclusion',
-          content: `Summary of the presentation about ${topic} and its impact on ${industry}.`
+    if (architectMode) {
+      // Use the fully autonomous Presentation Architect
+      const result = await pptService.createPresentation({
+        presentation_id: `pres_${Date.now()}`,
+        topic: topic,
+        options: {
+          format: 'all',
+          quality: 'high',
+          animations: true,
+          transitions: true,
+          speaker_notes: true,
+          export_assets: true,
+          smart_formatting: true,
+          ai_images: true
         }
-      ],
-      coverImage: '',
-      createdAt: new Date().toISOString(),
+      } as any);
+
+      return NextResponse.json({
+        success: true,
+        data: result,
+      })
     }
 
+    // Default semi-autonomous logic (can be expanded later)
     return NextResponse.json({
-      success: true,
-      data: mockPresentation,
+      success: false,
+      error: 'Architect Mode is currently required for high-fidelity generation.',
     })
 
   } catch (error) {

@@ -47,9 +47,9 @@ export default function Dashboard() {
     {
       id: 'slides',
       name: 'Slides Generator',
-      description: 'Create professional AI-powered presentations in minutes',
+      description: 'New Architect Mode: Fully autonomous, world-class presentation engine with AI imagery.',
       icon: <Presentation className="w-6 h-6" />,
-      color: 'bg-blue-500'
+      color: 'bg-indigo-600'
     },
     {
       id: 'catalogue',
@@ -185,8 +185,13 @@ export default function Dashboard() {
                   className={`${darkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'} p-6 rounded-lg shadow-sm border hover:shadow-md transition-all duration-300 hover:scale-105 cursor-pointer group`}
                 >
                   <div className="flex items-center justify-between mb-4">
-                    <div className={`w-12 h-12 ${tool.color} rounded-lg flex items-center justify-center text-white`}>
+                    <div className={`w-12 h-12 ${tool.color} rounded-lg flex items-center justify-center text-white relative`}>
                       {tool.icon}
+                      {tool.id === 'slides' && (
+                        <span className="absolute -top-2 -right-2 bg-yellow-400 text-black text-[8px] font-bold px-1.5 py-0.5 rounded-full shadow-sm animate-bounce">
+                          NEW
+                        </span>
+                      )}
                     </div>
                     <div className={`w-8 h-8 rounded-full ${darkMode ? 'bg-gray-700' : 'bg-gray-100'} flex items-center justify-center group-hover:bg-cyan-100 transition-colors`}>
                       <span className="text-cyan-500">→</span>
@@ -316,10 +321,10 @@ export default function Dashboard() {
                 key={item.id}
                 onClick={() => setActiveView(item.id)}
                 className={`w-full flex items-center space-x-3 px-4 py-3 rounded-lg transition-colors ${item.active
-                    ? 'bg-gradient-to-r from-cyan-500 to-blue-500 text-white'
-                    : darkMode
-                      ? 'text-gray-300 hover:bg-gray-700'
-                      : 'text-gray-700 hover:bg-gray-100'
+                  ? 'bg-gradient-to-r from-cyan-500 to-blue-500 text-white'
+                  : darkMode
+                    ? 'text-gray-300 hover:bg-gray-700'
+                    : 'text-gray-700 hover:bg-gray-100'
                   }`}
               >
                 {item.icon}

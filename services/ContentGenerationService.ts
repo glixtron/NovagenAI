@@ -25,6 +25,10 @@ export interface ContentGenerationResponse {
 
 export class PromptLibrary {
   static getSystemPrompt(format: string, tone: string, audience: string, language: string): string {
+    if (format === 'presentation') {
+      return this.getPresentationArchitectPrompt(tone, audience, language);
+    }
+
     const base = `You are NovagenAI, an elite AI content engineer specializing in high-end ${format} production. 
     Your mission is to generate world-class, premium ${format} content that is perfectly tailored for a ${audience} audience.
     
@@ -36,7 +40,6 @@ export class PromptLibrary {
     PERSONALIZATION: Adapt the style to be "minimalist yet powerful", focusing on high information density and aesthetic clarity.`;
 
     const formatSpecific = {
-      presentation: `Focus on visual hierarchy. Use strong headlines, concise bullet points, and impactful summaries. Highlight key takeaways and ensure a logical story flow.`,
       article: `Use compelling hooks, clear transitions, and deep analytical insights. Structure with H2/H3 headers for readability.`,
       report: `Focus on data clarity, executive summaries, and actionable recommendations. Use professional business jargon where appropriate.`,
       email: `Be concise, direct, and persuasive. Use clear call-to-actions and professional sign-offs.`
@@ -45,7 +48,40 @@ export class PromptLibrary {
     return `${base}\n\n${formatSpecific}`;
   }
 
-  static engineerPrompt(prompt: string): string {
+  private static getPresentationArchitectPrompt(tone: string, audience: string, language: string): string {
+    return `You are the NovagenAI Presentation Architect, a senior AI systems expert specializing in multimodal generation and world-class design.
+    
+    CORE CAPABILITIES:
+    1. INTELLIGENT PARSING: Analyze topic, domain (Business/Academic/Technical/Creative), and audience depth.
+    2. ADAPTIVE STRUCTURE: 
+       - Business: Problem -> Market -> Solution -> Financials -> Ask
+       - Academic: Abstract -> Methodology -> Data -> Findings -> Conclusion
+       - Technical: Architecture -> Components -> API -> Deployment
+       - Creative: Concept -> Process -> Execution -> Results
+    3. VISUAL INTELLIGENCE: Identify where to trigger images, bar graphs, and hierarchy charts.
+    4. SMART EDITING: Provide hierarchical headlines, concise body text (max 50 words), and rich speaker notes.
+    
+    TONE: ${tone} (Elegant, authoritative, compelling).
+    AUDIENCE: ${audience}.
+    LANGUAGE: ${language}.
+    
+    OUTPUT REQUIREMENTS:
+    - Structured JSON format.
+    - 3-5 image prompts (DALL-E style) matched to visual style.
+    - Data visualization triggers for numerical data.
+    - 100% original content; no placeholders.`;
+  }
+
+  static engineerPrompt(prompt: string, format?: string): string {
+    if (format === 'presentation') {
+      return `REFINED ARCHITECTURAL REQUEST:
+      1. Analyze core intent: ${prompt}
+      2. Domain Classification: Determine field automatically.
+      3. Narrative structure development.
+      4. Multi-layered response with reasoning and content.
+      5. Cross-domain intelligence injection.`;
+    }
+
     return `USER REQUEST: ${prompt}
     
     REFINEMENT INSTRUCTIONS:
@@ -156,7 +192,7 @@ export class ContentGenerationService {
 
   private async generateWithGPT4(request: ContentGenerationRequest): Promise<ContentGenerationResponse> {
     const systemPrompt = PromptLibrary.getSystemPrompt(request.format, request.tone, request.audience, request.language);
-    const engineeredPrompt = PromptLibrary.engineerPrompt(request.prompt);
+    const engineeredPrompt = PromptLibrary.engineerPrompt(request.prompt, request.format);
 
     const completion = await this.openai.chat.completions.create({
       model: 'gpt-4',
@@ -172,6 +208,7 @@ export class ContentGenerationService {
       ],
       max_tokens: request.maxLength ? Math.ceil(request.maxLength * 1.5) : undefined,
       temperature: 0.7,
+      response_format: request.format === 'presentation' ? { type: 'json_object' } : undefined,
     });
 
     const content = completion.choices[0]?.message?.content || '';
@@ -188,7 +225,7 @@ export class ContentGenerationService {
 
   private async generateWithClaude(request: ContentGenerationRequest): Promise<ContentGenerationResponse> {
     const systemPrompt = PromptLibrary.getSystemPrompt(request.format, request.tone, request.audience, request.language);
-    const engineeredPrompt = PromptLibrary.engineerPrompt(request.prompt);
+    const engineeredPrompt = PromptLibrary.engineerPrompt(request.prompt, request.format);
 
     const response = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
@@ -207,7 +244,7 @@ export class ContentGenerationService {
           },
           {
             role: 'user',
-            content: (request.context ? `CONTEXT: ${request.context}\n\n` : '') + engineeredPrompt
+            content: (request.context ? `CONTEXT: ${request.context}\n\n` : '') + engineeredPrompt + (request.format === 'presentation' ? "\n\nIMPORTANT: Return a valid JSON object only." : "")
           }
         ]
       })
@@ -227,10 +264,13 @@ export class ContentGenerationService {
   }
 
   private async generateWithGemini(request: ContentGenerationRequest): Promise<ContentGenerationResponse> {
-    const model = this.genAI.getGenerativeModel({ model: 'gemini-1.5-pro' });
+    const model = this.genAI.getGenerativeModel({
+      model: 'gemini-1.5-pro',
+      generationConfig: request.format === 'presentation' ? { responseMimeType: 'application/json' } : undefined
+    });
 
     const systemPrompt = PromptLibrary.getSystemPrompt(request.format, request.tone, request.audience, request.language);
-    const engineeredPrompt = PromptLibrary.engineerPrompt(request.prompt);
+    const engineeredPrompt = PromptLibrary.engineerPrompt(request.prompt, request.format);
 
     const result = await model.generateContent(systemPrompt + "\n\n" + (request.context ? `CONTEXT: ${request.context}\n\n` : '') + engineeredPrompt);
     const content = result.response.text() || '';

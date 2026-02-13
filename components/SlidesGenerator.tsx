@@ -161,6 +161,7 @@ export default function SlidesGenerator() {
   const [brandColors, setBrandColors] = useState(['#00acc1', '#1a237e', '#ffffff', '#000000']);
   const [animationEnabled, setAnimationEnabled] = useState(true);
   const [accessibilityMode, setAccessibilityMode] = useState(false);
+  const [architectMode, setArchitectMode] = useState(true); // Default to true for world-class experience
 
   // Constants from the provided code
   const THEMES = [
@@ -391,7 +392,34 @@ Return format (strict JSON):
 
     setIsGenerating(true);
     try {
-      // Enhanced AI generation with analytical content
+      if (architectMode) {
+        // CALL THE NEW ARCHITECT API
+        const response = await fetch('/api/presentations/generate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            topic: config.topic,
+            industry: config.industry,
+            tone: config.tone,
+            length: config.length,
+            architectMode: true
+          })
+        });
+
+        const result = await response.json();
+        if (result.success) {
+          // Mapping server response (which is detailed PPT structure) to UI slides
+          const serverSlides = result.data.slides || [];
+          setSlides(serverSlides);
+          setCurrentSlide(0);
+          // alert('NovagenAI Architect has crafted your presentation.');
+        } else {
+          throw new Error(result.error || 'Architect mode failed');
+        }
+        return;
+      }
+
+      // Fallback to legacy client-side generation
       await new Promise(resolve => setTimeout(resolve, 3000));
 
       const generatedSlides: Slide[] = [];
@@ -688,8 +716,8 @@ Return format (strict JSON):
                   type="button"
                   onClick={() => setConfig({ ...config, theme: theme.id })}
                   className={`relative p-4 rounded-2xl border-2 transition-all backdrop-blur-sm ${config.theme === theme.id
-                      ? 'border-blue-500 bg-blue-50/50 shadow-lg shadow-blue-500/20'
-                      : 'border-gray-200/50 bg-white/30 hover:bg-white/50'
+                    ? 'border-blue-500 bg-blue-50/50 shadow-lg shadow-blue-500/20'
+                    : 'border-gray-200/50 bg-white/30 hover:bg-white/50'
                     }`}
                 >
                   <div className={`w-full h-12 rounded-xl shadow-sm ${theme.color} mb-3`}></div>
@@ -748,6 +776,20 @@ Return format (strict JSON):
               />
               <span className="text-sm font-medium text-gray-700">Enable Animations</span>
             </label>
+
+            <label className="flex items-center cursor-pointer bg-blue-50 px-4 py-2 rounded-xl border border-blue-200 shadow-sm animate-pulse">
+              <input
+                type="checkbox"
+                checked={architectMode}
+                onChange={(e) => setArchitectMode(e.target.checked)}
+                className="mr-3 w-5 h-5 text-blue-600 rounded focus:ring-blue-500"
+                disabled={isGenerating}
+              />
+              <div className="flex flex-col">
+                <span className="text-sm font-bold text-blue-900">Gemini Architect Mode</span>
+                <span className="text-[10px] text-blue-600 font-medium">Fully Automated Multimodal Engine</span>
+              </div>
+            </label>
           </div>
 
           {/* Generate Button */}
@@ -801,8 +843,8 @@ Return format (strict JSON):
                     key={slide.id}
                     onClick={() => setCurrentSlide(index)}
                     className={`px-4 py-2 rounded-xl text-sm font-medium transition-all ${currentSlide === index
-                        ? 'bg-blue-500 text-white shadow-lg'
-                        : 'bg-white/50 text-gray-700 hover:bg-white/70'
+                      ? 'bg-blue-500 text-white shadow-lg'
+                      : 'bg-white/50 text-gray-700 hover:bg-white/70'
                       }`}
                   >
                     Slide {index + 1}

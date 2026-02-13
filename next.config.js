@@ -2,7 +2,13 @@
 const nextConfig = {
   reactStrictMode: true,
   images: {
-    domains: ['image.pollinations.ai', 'lh3.googleusercontent.com'],
+    domains: [
+      'image.pollinations.ai',
+      'lh3.googleusercontent.com',
+      'api.deepai.org',
+      'images.unsplash.com',
+      'replicate.delivery'
+    ],
   },
   env: {
     NEXTAUTH_URL: process.env.NEXTAUTH_URL,

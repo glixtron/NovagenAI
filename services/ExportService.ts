@@ -322,7 +322,7 @@ export class ExportService {
 
   private async exportToZIP(presentation: any, request: ExportRequest): Promise<ExportResponse> {
     // Create a comprehensive zip with all formats
-    const files = [];
+    const files: Array<{ filename: string; content?: string; buffer?: Buffer }> = [];
     
     // Add JSON
     const jsonContent = JSON.stringify(presentation, null, 2);

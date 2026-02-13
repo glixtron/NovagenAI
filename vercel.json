@@ -16,15 +16,5 @@
       "dest": "/$1"
     }
   ],
-  "env": {
-    "NEXTAUTH_URL": "@nextauth_url",
-    "NEXTAUTH_SECRET": "@nextauth_secret"
-  },
-  "build": {
-    "env": {
-      "NEXTAUTH_URL": "@nextauth_url"
-    }
-  },
-  "regions": ["iad1"],
   "framework": "nextjs"
 }

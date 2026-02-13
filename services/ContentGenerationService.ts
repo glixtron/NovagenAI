@@ -33,11 +33,16 @@ export class ContentGenerationService {
     this.openai = new OpenAI({
       apiKey: process.env.OPENAI_API_KEY,
     });
-    
+
     this.genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
-    
-    this.prisma = new PrismaClient();
-    
+
+    try {
+      this.prisma = new PrismaClient();
+    } catch (error) {
+      console.warn('Prisma Client failed to initialize. Database logging will be disabled.');
+      this.prisma = null as any;
+    }
+
     this.redis = new Redis({
       host: process.env.REDIS_HOST || 'localhost',
       port: parseInt(process.env.REDIS_PORT || '6379'),
@@ -54,7 +59,7 @@ export class ContentGenerationService {
       // Check cache first
       const cacheKey = `content:${JSON.stringify(request)}`;
       const cached = await this.redis.get(cacheKey);
-      
+
       if (cached) {
         return JSON.parse(cached);
       }
@@ -64,52 +69,53 @@ export class ContentGenerationService {
         case 'gpt-4':
           response = await this.generateWithGPT4(request);
           break;
-          
+
         case 'claude':
           response = await this.generateWithClaude(request);
           break;
-          
+
         case 'gemini':
           response = await this.generateWithGemini(request);
           break;
-          
+
         case 'design-intelligence':
           response = await this.generateWithDesignIntelligence(request);
           break;
-          
+
         default:
           throw new Error(`Unsupported model: ${request.model}`);
       }
 
       // Cache the result
       await this.redis.setex(cacheKey, 3600, JSON.stringify(response)); // 1 hour cache
-      
+
       // Log generation
       await this.logGeneration({
         userId: 'system',
         model: request.model,
         prompt: request.prompt,
-        tokensUsed: response.tokensUsed,
+        response: { content: response.content, suggestions: response.suggestions },
+        tokens: response.tokensUsed,
         cost: response.cost,
         latency: Date.now() - startTime,
-        status: 'completed'
+        status: 'COMPLETED'
       });
 
       return response;
     } catch (error) {
       console.error('Content generation error:', error);
-      
+
       await this.logGeneration({
         userId: 'system',
         model: request.model,
         prompt: request.prompt,
-        tokensUsed: 0,
+        response: { error: (error as Error).message },
+        tokens: 0,
         cost: 0,
         latency: Date.now() - startTime,
-        status: 'failed',
-        error: error.message
+        status: 'FAILED'
       });
-      
+
       throw error;
     }
   }
@@ -132,7 +138,7 @@ export class ContentGenerationService {
     });
 
     const content = completion.choices[0]?.message?.content || '';
-    
+
     return {
       content,
       model: 'gpt-4',
@@ -169,7 +175,7 @@ export class ContentGenerationService {
 
     const claudeData = await response.json();
     const content = claudeData.content[0]?.text || '';
-    
+
     return {
       content,
       model: 'claude-3-sonnet',
@@ -182,12 +188,12 @@ export class ContentGenerationService {
 
   private async generateWithGemini(request: ContentGenerationRequest): Promise<ContentGenerationResponse> {
     const model = this.genAI.getGenerativeModel({ model: 'gemini-1.5-pro' });
-    
+
     const systemPrompt = `You are a professional content generator. Generate ${request.format} content with a ${request.tone} tone for a ${request.audience} audience. The content should be in ${request.language}. Context: ${request.context || 'No additional context provided'}. Maximum length: ${request.maxLength || 'unlimited'} words.`;
 
     const result = await model.generateContent(systemPrompt + request.prompt);
     const content = result.response.text() || '';
-    
+
     return {
       content,
       model: 'gemini-1.5-pro',
@@ -238,7 +244,7 @@ export class ContentGenerationService {
     // Design intelligence enhancement logic
     const structure = this.analyzeContentStructure(gpt4Content, claudeContent, geminiContent);
     const improvements = this.generateDesignImprovements(structure, tone, audience);
-    
+
     return `${gpt4Content}\n\n${claudeContent}\n\n${geminiContent}\n\n--- Design Intelligence Enhancements ---\n${improvements.join('\n')}`;
   }
 
@@ -255,47 +261,47 @@ export class ContentGenerationService {
   }
 
   private generateDesignImprovements(structure: any, tone: string, audience: string): string[] {
-    const improvements = [];
-    
+    const improvements: string[] = [];
+
     if (structure.wordCount > 500) {
       improvements.push('Consider breaking down into smaller sections for better readability');
     }
-    
+
     if (!structure.hasCallToAction && audience === 'business') {
       improvements.push('Add a clear call-to-action to drive conversions');
     }
-    
+
     if (structure.readabilityScore < 60) {
       improvements.push('Simplify complex sentences and use shorter paragraphs');
     }
-    
+
     if (!structure.hasDataPoints && audience === 'technical') {
       improvements.push('Include specific data points and metrics to support claims');
     }
-    
+
     if (tone === 'professional' && structure.hasEmotionalAppeal) {
       improvements.push('Consider using more neutral language for professional audience');
     }
-    
+
     return improvements;
   }
 
   private generateSuggestions(content: string): string[] {
-    const suggestions = [];
-    
+    const suggestions: string[] = [];
+
     // Content improvement suggestions
     if (content.length < 100) {
       suggestions.push('Consider expanding the content to provide more value');
     }
-    
+
     if (!content.includes('•') && !content.includes('-')) {
       suggestions.push('Use bullet points or numbered lists for better readability');
     }
-    
+
     if (content.length > 1000 && !content.includes('\n')) {
       suggestions.push('Consider breaking up long paragraphs for better readability');
     }
-    
+
     return suggestions;
   }
 
@@ -311,7 +317,7 @@ export class ContentGenerationService {
       'gemini': 0.000001, // $0.001 per 1K tokens
       'design-intelligence': 0.00005 // Weighted average for multiple models
     };
-    
+
     return (tokens / 1000) * (costPerToken[model] || 0.00001);
   }
 
@@ -319,7 +325,7 @@ export class ContentGenerationService {
     // Flesch Reading Ease Score approximation
     const avgSentenceLength = content.split('.').reduce((sum, sentence) => sum + sentence.length, 0) / content.split('.').length;
     const avgWordLength = content.split(' ').reduce((sum, word) => sum + word.length, 0) / content.split(' ').length;
-    
+
     // Simplified readability formula
     const score = Math.max(0, 100 - (avgSentenceLength * 1.5 + avgWordLength * 12.5) / 2);
     return Math.min(100, score);
@@ -331,14 +337,15 @@ export class ContentGenerationService {
   }
 
   private async logGeneration(data: any): Promise<void> {
+    if (!this.prisma) return; // Skip logging if Prisma is not initialized
     try {
       await this.prisma.aIGeneration.create({
         data: {
           userId: data.userId,
           prompt: data.prompt,
           model: data.model,
-          response: data.response,
-          tokensUsed: data.tokensUsed,
+          response: data.response || {},
+          tokens: data.tokens || 0,
           cost: data.cost,
           latency: data.latency,
           status: data.status,

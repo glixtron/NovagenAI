@@ -5,6 +5,8 @@ import fs from 'fs/promises';
 import path from 'path';
 import { exec } from 'child_process';
 import { promisify } from 'util';
+import { presentationEnhancerService } from './PresentationEnhancerService';
+
 
 const execAsync = promisify(exec);
 
@@ -135,6 +137,10 @@ export interface AnimationConfig {
   repeat?: number | 'infinite';
 }
 
+
+
+// ... (existing imports)
+
 export interface PPTGenerationRequest {
   presentation_id: string;
   template?: string;
@@ -147,65 +153,79 @@ export interface PPTGenerationRequest {
     transitions: boolean;
     speaker_notes: boolean;
     export_assets: boolean;
+    smart_formatting?: boolean; // New Flag
+    ai_images?: boolean; // New Flag
   };
 }
 
+// Response Interface
 export interface PPTGenerationResponse {
+  success: boolean;
   presentation_id: string;
   files: {
     pptx?: string;
     pdf?: string;
     video?: string;
   };
-  assets: {
-    images: string[];
-    charts: string[];
-    icons: string[];
+  assets?: any;
+  stats?: {
+
+    slides: number;
+    duration: number;
+    size: number;
   };
-  metadata: {
-    total_slides: number;
-    file_sizes: Record<string, number>;
-    generation_time: number;
-    created_at: string;
-  };
+  metadata?: any;
 }
 
 export class PPTGeneratorService {
   private prisma: PrismaClient;
-  private redis: Redis;
   private s3Client: S3Client;
+  private redis: Redis;
   private localStoragePath: string;
 
   constructor() {
     this.prisma = new PrismaClient();
-    
+    this.s3Client = new S3Client({ region: process.env.AWS_REGION });
+
     this.redis = new Redis({
-      host: process.env.REDIS_HOST || 'localhost',
-      port: parseInt(process.env.REDIS_PORT || '6379'),
+      host: process.env.REDIS_HOST,
+      port: Number(process.env.REDIS_PORT),
       password: process.env.REDIS_PASSWORD,
-      db: parseInt(process.env.REDIS_DB || '0'),
     });
-
-    this.s3Client = new S3Client({
-      region: process.env.AWS_REGION || 'us-east-1',
-      credentials: {
-        accessKeyId: process.env.AWS_ACCESS_KEY_ID || '',
-        secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY || '',
-      },
-    });
-
-    this.localStoragePath = process.env.LOCAL_STORAGE_PATH || '/tmp/presentations';
-    this.ensureLocalStorage();
+    this.localStoragePath = process.env.LOCAL_STORAGE_PATH || './public/presentations';
   }
 
   // PRESENTATION MANAGEMENT
+
   async createPresentation(request: PPTGenerationRequest): Promise<PPTGenerationResponse> {
     try {
       const startTime = Date.now();
-      
+
       // Create presentation structure
       const presentationPath = path.join(this.localStoragePath, request.presentation_id);
       await this.createDirectoryStructure(presentationPath);
+
+      // AI Enhancement Step
+      if (request.options.speaker_notes || request.options.smart_formatting || request.options.ai_images) {
+        // Create a temporary PresentationData object for the enhancer
+        const tempPres: any = {
+          title: request.presentation_id, // Placeholder
+          slides: request.slides as any, // Cast for compatibility
+          theme: 'modern', // Placeholder
+          aspectRatio: '16:9',
+          imageStyle: 'Photorealistic',
+          enableAnimations: request.options.animations
+        };
+
+        const enhancedPres = await presentationEnhancerService.enhancePresentation(tempPres, {
+          notes: request.options.speaker_notes,
+          formatting: request.options.smart_formatting,
+          images: request.options.ai_images
+        });
+
+        // Update request slides with enhanced versions
+        request.slides = enhancedPres.slides as any;
+      }
 
       // Process slides
       const processedSlides = await this.processSlides(request.slides, request.presentation_id);
@@ -223,8 +243,10 @@ export class PPTGeneratorService {
       await this.cachePresentationStructure(request.presentation_id);
 
       const response: PPTGenerationResponse = {
+        success: true,
         presentation_id: request.presentation_id,
         files: generatedFiles,
+
         assets: await this.getAssetUrls(request.presentation_id),
         metadata: {
           total_slides: processedSlides.length,
@@ -247,10 +269,10 @@ export class PPTGeneratorService {
   async updatePresentation(presentationId: string, updates: Partial<PPTGenerationRequest>): Promise<PPTGenerationResponse> {
     try {
       const startTime = Date.now();
-      
+
       // Get current presentation
       const currentPresentation = await this.getPresentation(presentationId);
-      
+
       // Create backup version
       const versionNumber = await this.getNextVersionNumber(presentationId);
       await this.createVersion(presentationId, versionNumber, `Update version ${versionNumber}`);
@@ -273,8 +295,10 @@ export class PPTGeneratorService {
       await this.cachePresentationStructure(presentationId);
 
       const response: PPTGenerationResponse = {
+        success: true,
         presentation_id: presentationId,
         files: generatedFiles,
+
         assets: await this.getAssetUrls(presentationId),
         metadata: {
           total_slides: currentPresentation.slides ? Object.keys(currentPresentation.slides).length : 0,
@@ -372,7 +396,7 @@ export class PPTGeneratorService {
 
   private async saveSlides(slides: SlideData[], presentationPath: string): Promise<void> {
     const slidesPath = path.join(presentationPath, 'slides');
-    
+
     for (let i = 0; i < slides.length; i++) {
       const slide = slides[i];
       const slideFile = path.join(slidesPath, `slide_${i + 1}.json`);
@@ -386,7 +410,7 @@ export class PPTGeneratorService {
 
     try {
       const slideFiles = await fs.readdir(slidesPath);
-      
+
       for (const file of slideFiles) {
         if (file.startsWith('slide_') && file.endsWith('.json')) {
           const slideData = await fs.readFile(path.join(slidesPath, file), 'utf-8');
@@ -408,7 +432,7 @@ export class PPTGeneratorService {
     try {
       const assetType = element.type === 'image' ? 'images' : element.type === 'chart' ? 'charts' : 'icons';
       const assetPath = path.join(this.localStoragePath, presentationId, 'slides', 'assets', assetType);
-      
+
       // Ensure asset directory exists
       await this.ensureDirectory(assetPath);
 
@@ -430,12 +454,12 @@ export class PPTGeneratorService {
     if (element.content.url) {
       const filename = `image_${Date.now()}.png`;
       const localPath = path.join(assetPath, filename);
-      
+
       // Download image
       const response = await fetch(element.content.url);
       const buffer = Buffer.from(await response.arrayBuffer());
       await fs.writeFile(localPath, buffer);
-      
+
       // Update element content with local path
       element.content.localPath = filename;
       element.content.size = buffer.length;
@@ -446,11 +470,11 @@ export class PPTGeneratorService {
     // Generate chart image
     const filename = `chart_${Date.now()}.png`;
     const localPath = path.join(assetPath, filename);
-    
+
     // Generate chart using D3.js or similar
     const chartBuffer = await this.generateChartImage(element.content);
     await fs.writeFile(localPath, chartBuffer);
-    
+
     // Update element content
     element.content.localPath = filename;
     element.content.size = chartBuffer.length;
@@ -460,7 +484,7 @@ export class PPTGeneratorService {
     // Download or generate icon
     const filename = `icon_${Date.now()}.svg`;
     const localPath = path.join(assetPath, filename);
-    
+
     if (element.content.url) {
       // Download icon
       const response = await fetch(element.content.url);
@@ -471,7 +495,7 @@ export class PPTGeneratorService {
       const svgContent = this.generateIconSVG(element.content);
       await fs.writeFile(localPath, svgContent);
     }
-    
+
     element.content.localPath = filename;
   }
 
@@ -502,14 +526,14 @@ export class PPTGeneratorService {
     try {
       // Use LibreOffice or OnlyOffice to generate PPTX
       const pptxPath = path.join(exportsPath, 'presentation.pptx');
-      
+
       // Create PPTX structure
       const pptxContent = await this.createPPTXContent(slides, request);
       await fs.writeFile(pptxPath, pptxContent);
 
       // Upload to S3
       const s3Url = await this.uploadToS3(pptxPath, 'presentation.pptx', 'application/vnd.openxmlformats-officedocument.presentationml.presentation');
-      
+
       return s3Url;
     } catch (error) {
       console.error('Generate PPTX error:', error);
@@ -521,18 +545,18 @@ export class PPTGeneratorService {
     try {
       // Use Puppeteer to generate PDF
       const pdfPath = path.join(exportsPath, 'presentation.pdf');
-      
+
       // Create HTML from slides
       const htmlContent = await this.createHTMLContent(slides, request);
       const htmlPath = path.join(exportsPath, 'presentation.html');
       await fs.writeFile(htmlPath, htmlContent);
 
       // Convert HTML to PDF
-      await execAsync(`puppeteer print-to-pdf "${htmlPath}" --output "${pdfPath}"`);
+      await execAsync(`puppeteer print-to-pdf "${htmlPath}" --output "${pdfPath} "`);
 
       // Upload to S3
       const s3Url = await this.uploadToS3(pdfPath, 'presentation.pdf', 'application/pdf');
-      
+
       return s3Url;
     } catch (error) {
       console.error('Generate PDF error:', error);
@@ -544,17 +568,17 @@ export class PPTGeneratorService {
     try {
       // Use FFmpeg to generate video
       const videoPath = path.join(exportsPath, 'presentation_video.mp4');
-      
+
       // Generate slide images first
       const slideImages = await this.generateSlideImages(slides, exportsPath);
-      
+
       // Create video from images using FFmpeg
       const imageList = slideImages.map(img => path.join(exportsPath, img)).join('|');
-      await execAsync(`ffmpeg -f concat -i "${imageList}" -c:v libx264 -pix_fmt yuv420p "${videoPath}"`);
+      await execAsync(`ffmpeg -f concat -i "${imageList}" -c:v libx264 -pix_fmt yuv420p "${videoPath} "`);
 
       // Upload to S3
       const s3Url = await this.uploadToS3(videoPath, 'presentation_video.mp4', 'video/mp4');
-      
+
       return s3Url;
     } catch (error) {
       console.error('Generate video error:', error);
@@ -589,7 +613,7 @@ export class PPTGeneratorService {
 
     try {
       const versionFiles = await fs.readdir(versionsPath);
-      
+
       for (const file of versionFiles) {
         if (file.startsWith('version_') && file.endsWith('.json')) {
           const versionData = await fs.readFile(path.join(versionsPath, file), 'utf-8');
@@ -608,7 +632,7 @@ export class PPTGeneratorService {
     try {
       const versionsPath = path.join(this.localStoragePath, presentationId, 'versions');
       const versionFiles = await fs.readdir(versionsPath);
-      
+
       const versions = versionFiles
         .filter(file => file.startsWith('version_') && file.endsWith('.json'))
         .map(file => file.replace('version_', '').replace('.json', ''))
@@ -620,7 +644,7 @@ export class PPTGeneratorService {
 
       const lastVersion = versions[versions.length - 1];
       const [major, minor, patch] = lastVersion.split('.').map(Number);
-      
+
       return `${major}.${minor}.${patch + 1}`;
     } catch (error) {
       return '1.0.0';
@@ -634,11 +658,11 @@ export class PPTGeneratorService {
 
     try {
       const exportFiles = await fs.readdir(exportsPath);
-      
+
       for (const file of exportFiles) {
         const filePath = path.join(exportsPath, file);
         const stats = await fs.stat(filePath);
-        
+
         if (file === 'presentation.pdf') {
           exports.presentation_pdf = `https://s3.amazonaws.com/${process.env.AWS_S3_BUCKET}/presentations/${path.basename(presentationPath)}/exports/${file}`;
         } else if (file === 'presentation.pptx') {
@@ -680,7 +704,7 @@ export class PPTGeneratorService {
 
   private async loadAssets(slidesPath: string, assets: any): Promise<void> {
     const assetsPath = path.join(slidesPath, 'assets');
-    
+
     try {
       // Load images
       const imagesPath = path.join(assetsPath, 'images');
@@ -730,14 +754,14 @@ export class PPTGeneratorService {
 
   private async getFileSizes(files: any): Promise<Record<string, number>> {
     const sizes: Record<string, number> = {};
-    
+
     for (const [key, url] of Object.entries(files)) {
       if (typeof url === 'string') {
         // Would get actual file size from S3
         sizes[key] = 0;
       }
     }
-    
+
     return sizes;
   }
 
@@ -750,7 +774,7 @@ export class PPTGeneratorService {
     try {
       const fileBuffer = await fs.readFile(filePath);
       const key = `presentations/${path.dirname(filePath)}/${filename}`;
-      
+
       const command = new PutObjectCommand({
         Bucket: process.env.AWS_S3_BUCKET || 'novagenai-storage',
         Key: key,
@@ -760,7 +784,7 @@ export class PPTGeneratorService {
       });
 
       await this.s3Client.send(command);
-      
+
       return `https://${process.env.AWS_S3_BUCKET}.s3.${process.env.AWS_REGION || 'us-east-1'}.amazonaws.com/${key}`;
     } catch (error) {
       console.error('S3 upload error:', error);
@@ -772,7 +796,7 @@ export class PPTGeneratorService {
     try {
       // Delete all files related to presentation
       const prefix = `presentations/${presentationId}/`;
-      
+
       // Would list and delete all objects with this prefix
       console.log(`Would delete all S3 objects with prefix: ${prefix}`);
     } catch (error) {
@@ -888,21 +912,21 @@ export class PPTGeneratorService {
 
   private async generateSlideImages(slides: SlideData[], exportsPath: string): Promise<string[]> {
     const imageFiles: string[] = [];
-    
+
     for (let i = 0; i < slides.length; i++) {
       const slide = slides[i];
       const htmlContent = await this.createHTMLContent([slide], { options: {} } as any);
       const htmlPath = path.join(exportsPath, `slide_${i + 1}.html`);
       const imagePath = path.join(exportsPath, `slide_${i + 1}.png`);
-      
+
       await fs.writeFile(htmlPath, htmlContent);
-      
+
       // Convert HTML to image using Puppeteer
       await execAsync(`puppeteer screenshot "${htmlPath}" --output "${imagePath}"`);
-      
+
       imageFiles.push(`slide_${i + 1}.png`);
     }
-    
+
     return imageFiles;
   }
 
@@ -941,7 +965,7 @@ export class PPTGeneratorService {
   async getPresentationStats(presentationId: string): Promise<any> {
     try {
       const presentation = await this.getPresentation(presentationId);
-      
+
       return {
         total_slides: Object.keys(presentation.slides || {}).filter(key => key.startsWith('slide_')).length,
         total_assets: {
@@ -963,25 +987,25 @@ export class PPTGeneratorService {
     try {
       const presentationPath = path.join(this.localStoragePath, presentationId);
       let totalSize = 0;
-      
+
       const calculateSize = async (dirPath: string): Promise<number> => {
         const items = await fs.readdir(dirPath);
         let size = 0;
-        
+
         for (const item of items) {
           const itemPath = path.join(dirPath, item);
           const stats = await fs.stat(itemPath);
-          
+
           if (stats.isDirectory()) {
             size += await calculateSize(itemPath);
           } else {
             size += stats.size;
           }
         }
-        
+
         return size;
       };
-      
+
       totalSize = await calculateSize(presentationPath);
       return totalSize;
     } catch (error) {
